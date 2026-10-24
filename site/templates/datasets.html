@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% set active = "datasets" %}
+{% block title %}Datasets · {{ site.title }}{% endblock %}
+{% block content %}
+<section class="intro">
+  <h4>Datasets</h4>
+  <h5>Each dataset page has a chart, the caveats to know before using it, and downloads.</h5>
+</section>
+
+{% for page in pages %}
+<a class="card" href="{{ site.base_url }}datasets/{{ page.meta.id }}/">
+  <div class="card-header">{{ page.meta.title }}</div>
+  <div class="card-body">
+    <p class="publisher">{{ page.meta.publisher }}</p>
+    <p>{{ page.meta.summary }}</p>
+    {% if page.headline %}
+    <p class="stat"><strong>{{ page.headline.value }}</strong>
+      {{ page.headline.label|lower }}, 12 months ending {{ page.headline.period }}</p>
+    {% endif %}
+  </div>
+  <span class="material-symbols-outlined card-link">open_in_new</span>
+</a>
+{% endfor %}
+{% endblock %}

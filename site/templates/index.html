@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% set active = "home" %}
+{% block content %}
+<section class="intro">
+  <h4>{{ site.tagline }}</h4>
+  <h5>Dathren collects datasets from public health agencies, puts them in one consistent format,
+    and notes what to watch out for before you use them.</h5>
+  <pre class="terminal"><code><span class="prompt">$</span> cargo install dathren-cli
+<span class="prompt">$</span> dathren fetch cdc-vsrr-overdose --geo US --since 2020</code></pre>
+  <a class="button cta" href="{{ site.base_url }}datasets/"><span>Browse datasets</span><span class="material-symbols-outlined">arrow_forward</span></a>
+</section>
+{% endblock %}

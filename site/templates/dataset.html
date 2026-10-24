@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+{% set active = "datasets" %}
+{% set meta = page.meta %}
+{% block title %}{{ meta.title }} · {{ site.title }}{% endblock %}
+{% block description %}{{ meta.summary }}{% endblock %}
+{% block content %}
+<section class="intro">
+  <h4>{{ meta.title }}</h4>
+  <h5>{{ meta.summary }}</h5>
+  <p class="publisher">{{ meta.publisher }} · Updated {{ meta.update_cadence|lower }}</p>
+</section>
+
+{% if page.headline %}
+<section class="card wide">
+  <div class="card-header">{{ page.headline.label }}, United States</div>
+  <div class="figure-head">
+    <p class="muted">Rolling 12-month total, using the publisher's adjusted counts where available.</p>
+    <p class="stat"><strong>{{ page.headline.value }}</strong>
+      12 months ending {{ page.headline.period }}{% if page.headline.reported %}, {{ page.headline.reported }} reported so far{% endif %}</p>
+  </div>
+  {% if page.chart %}
+  <div class="chart-wrap" data-points='{{ page.chart.points|tojson }}'>
+    {{ page.chart.svg|safe }}
+    <div class="tooltip" role="status" hidden></div>
+  </div>
+  <details class="table-view">
+    <summary>Show as table</summary>
+    <table>
+      <thead><tr><th>12 months ending</th><th>{{ meta.measures[0].unit|capitalize }}</th></tr></thead>
+      <tbody>{% for p in page.chart.points|reverse %}<tr><td>{{ p.period }}</td><td>{{ p.value }}</td></tr>{% endfor %}</tbody>
+    </table>
+  </details>
+  {% endif %}
+</section>
+{% endif %}
+
+<section class="card wide">
+  <div class="card-header"><span class="material-symbols-outlined">warning</span> Before you use this data</div>
+  <ul class="caveats">
+    {% for c in meta.caveats %}<li><strong>{{ c.title }}</strong>{{ c.detail|inline_code }}</li>{% endfor %}
+  </ul>
+</section>
+
+<section class="card wide">
+  <div class="card-header">Measures</div>
+  <table class="measures">
+    <thead><tr><th>Id</th><th>Description</th><th>Code</th></tr></thead>
+    <tbody>
+      {% for m in meta.measures %}
+      <tr><td><code>{{ m.id }}</code></td><td>{{ m.label }}</td><td class="code">{{ m.code or "" }}</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+
+<section class="card wide">
+  <div class="card-header">Get the data</div>
+  <div class="buttons">
+    <a class="button" href="{{ site.base_url }}data/{{ meta.id }}/us.csv"><span>CSV</span><span class="material-symbols-outlined">download</span></a>
+    <a class="button" href="{{ site.base_url }}data/{{ meta.id }}/us.json"><span>JSON</span><span class="material-symbols-outlined">download</span></a>
+    <a class="button" href="{{ meta.source_url }}"><span>Original source</span><span class="material-symbols-outlined">open_in_new</span></a>
+  </div>
+  <p class="muted">National series. Use the CLI for states and filters:</p>
+  <pre class="terminal"><code><span class="prompt">$</span> dathren fetch {{ meta.id }} --geo US --measure {{ meta.measures[0].id }} --since 2020</code></pre>
+</section>
+
+<section class="card wide">
+  <div class="card-header">Discussion</div>
+  <p class="muted">Share notes, gotchas, and analyses for this dataset. Threads live in GitHub Discussions.</p>
+  {% if site.giscus %}
+  <script src="https://giscus.app/client.js"
+    data-repo="{{ site.giscus.repo }}" data-repo-id="{{ site.giscus.repo_id }}"
+    data-category="{{ site.giscus.category }}" data-category-id="{{ site.giscus.category_id }}"
+    data-mapping="specific" data-term="{{ meta.id }}" data-strict="1"
+    data-reactions-enabled="1" data-input-position="top"
+    data-theme="dark_dimmed" data-lang="en" crossorigin="anonymous" async></script>
+  {% else %}
+  <p class="muted">Discussion isn't set up yet. Add a <code>[giscus]</code> section to <code>site/config.toml</code>.</p>
+  {% endif %}
+</section>
+{% endblock %}
+{% block scripts %}<script src="{{ site.base_url }}chart.js" defer></script>{% endblock %}

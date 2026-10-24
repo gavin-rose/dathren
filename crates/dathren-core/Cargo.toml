@@ -1,0 +1,14 @@
+[package]
+name = "dathren-core"
+description = "Normalized, caveat-aware access to public health datasets"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+reqwest.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+csv.workspace = true

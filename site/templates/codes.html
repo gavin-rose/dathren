@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% set active = "codes" %}
+{% block title %}Codes · {{ site.title }}{% endblock %}
+{% block content %}
+<section class="intro">
+  <h4>Codes</h4>
+  <h5>Definitions for the classification codes behind each dataset, like ICD-10, so you know exactly what a number counts.</h5>
+</section>
+
+<div class="search wide">
+  <span class="material-symbols-outlined">search</span>
+  <input type="search" placeholder="Search codes and definitions (coming soon)" aria-label="Search codes" disabled>
+</div>
+
+<section class="card wide">
+  <div class="card-header">Codes used by our datasets</div>
+  <table>
+    <thead><tr><th>Code</th><th>System</th><th>Meaning</th><th>Dataset</th></tr></thead>
+    <tbody>
+      {% for page in pages %}{% for m in page.meta.measures if m.code %}
+      <tr>
+        <td class="code nowrap">{{ m.code }}</td>
+        <td class="nowrap">ICD-10 (WHO)</td>
+        <td>{{ m.label }}</td>
+        <td class="nowrap"><a href="{{ site.base_url }}datasets/{{ page.meta.id }}/">{{ page.meta.title }}</a></td>
+      </tr>
+      {% endfor %}{% endfor %}
+    </tbody>
+  </table>
+  <p class="muted note">Mortality data uses the WHO's ICD-10. Hospital and billing data uses ICD-10-CM, a more detailed US version.
+    The same code can mean different things in each, so Dathren keeps them separate.</p>
+</section>
+
+<section class="card wide">
+  <div class="card-header">Code systems</div>
+  <table>
+    <thead><tr><th>System</th><th>Covers</th><th>Publisher</th><th>Status</th></tr></thead>
+    <tbody>
+      {% for name, covers, publisher in [
+        ("ICD-10-CM", "US diagnoses", "CDC"),
+        ("ICD-10 (WHO)", "Causes of death", "WHO"),
+        ("ICD-10-PCS", "Hospital procedures", "CMS"),
+        ("HCPCS Level II", "Supplies, drugs, and services", "CMS"),
+        ("NDC", "Drug products", "FDA"),
+        ("FIPS", "States and counties", "Census Bureau"),
+        ("LOINC", "Lab tests", "Regenstrief Institute"),
+      ] %}
+      <tr><td class="nowrap">{{ name }}</td><td>{{ covers }}</td><td class="nowrap">{{ publisher }}</td><td><span class="pill">Planned</span></td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endblock %}

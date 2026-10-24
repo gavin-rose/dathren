@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}{{ site.title }}{% endblock %}</title>
+  <meta name="description" content="{% block description %}{{ site.tagline }}{% endblock %}">
+  <link rel="icon" type="image/png" sizes="32x32" href="{{ site.base_url }}favicon-32.png">
+  <link rel="apple-touch-icon" href="{{ site.base_url }}apple-touch-icon.png">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600&display=swap">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200">
+  <link rel="stylesheet" href="{{ site.base_url }}style.css">
+</head>
+<body>
+  <nav>
+    {% for id, href, icon, label in [
+      ("home", "", "home", "Home"),
+      ("datasets", "datasets/", "dataset", "Datasets"),
+      ("codes", "codes/", "menu_book", "Codes"),
+      ("explore", "explore/", "query_stats", "Explore"),
+      ("discuss", "discuss/", "forum", "Discuss"),
+    ] %}
+    <a href="{{ site.base_url }}{{ href }}"{% if active == id %} class="active" aria-current="page"{% endif %}>
+      <span class="material-symbols-outlined">{{ icon }}</span>
+      <div>{{ label }}</div>
+    </a>
+    {% endfor %}
+  </nav>
+  <main>
+    <div class="content">
+      {% block content %}{% endblock %}
+    </div>
+    <footer>Data comes from public agencies and is passed through unaltered, with caveats noted.
+      Check the original source before using it in research.{% if site.repo_url %}
+      <a href="{{ site.repo_url }}">Dathren on GitHub</a>{% endif %}</footer>
+  </main>
+  {% block scripts %}{% endblock %}
+</body>
+</html>

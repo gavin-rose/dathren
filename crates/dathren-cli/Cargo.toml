@@ -1,0 +1,18 @@
+[package]
+name = "dathren-cli"
+description = "Command-line access to public health datasets"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[[bin]]
+name = "dathren"
+path = "src/main.rs"
+
+[dependencies]
+dathren-core.workspace = true
+dathren-site.workspace = true
+anyhow.workspace = true
+clap.workspace = true
+serde_json.workspace = true

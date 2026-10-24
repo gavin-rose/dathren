@@ -1,0 +1,21 @@
+[workspace]
+resolver = "3"
+members = ["crates/dathren-core", "crates/dathren-cli", "crates/dathren-site"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+license = "MIT"
+repository = "https://github.com/gavin-rose/dathren"
+
+[workspace.dependencies]
+dathren-core = { path = "crates/dathren-core" }
+dathren-site = { path = "crates/dathren-site" }
+anyhow = "1"
+clap = { version = "4", features = ["derive"] }
+csv = "1"
+minijinja = { version = "2", features = ["loader", "json"] }
+reqwest = { version = "0.12", default-features = false, features = ["blocking", "json", "rustls-tls"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+thiserror = "2"

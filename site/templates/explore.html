@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% set active = "explore" %}
+{% block title %}Explore · {{ site.title }}{% endblock %}
+{% block content %}
+<section class="intro">
+  <h4>Explore</h4>
+  <h5>Pick a dataset and measure to chart it, then download your selection or copy the command that fetches it.</h5>
+</section>
+
+<section class="card wide">
+  <div class="card-header">Query</div>
+  <form class="query" id="query">
+    <label>Dataset<select name="source"></select></label>
+    <label>Measure<select name="measure"></select></label>
+    <label>Geography<select name="geo">
+      <option value="US">United States</option>
+      <option disabled>States (coming soon)</option>
+      <option disabled>Counties (coming soon)</option>
+    </select></label>
+    <label>Since<select name="since"></select></label>
+  </form>
+</section>
+
+<section class="card wide">
+  <div class="card-header" id="result-title">Loading</div>
+  <div class="chart-wrap" id="result-chart"></div>
+  <p class="muted" id="result-status"></p>
+  <div class="buttons">
+    <button class="button" type="button" id="download"><span>Download CSV</span><span class="material-symbols-outlined">download</span></button>
+    <button class="button" type="button" id="copy"><span>Copy command</span><span class="material-symbols-outlined">content_copy</span></button>
+  </div>
+  <pre class="terminal"><code><span class="prompt">$</span> <span id="command"></span></code></pre>
+</section>
+
+<section class="card wide">
+  <div class="card-header">Coming soon</div>
+  <ul class="roadmap">
+    <li><span class="material-symbols-outlined">stacked_line_chart</span>Compare several measures on one chart</li>
+    <li><span class="material-symbols-outlined">map</span>State and county maps</li>
+    <li><span class="material-symbols-outlined">join</span>Combine datasets that share a geography</li>
+    <li><span class="material-symbols-outlined">bookmark</span>Shareable links to a saved query</li>
+  </ul>
+</section>
+
+<script type="application/json" id="catalog">[{% for p in pages %}{{ p.meta|tojson }}{% if not loop.last %},{% endif %}{% endfor %}]</script>
+{% endblock %}
+{% block scripts %}
+<script src="{{ site.base_url }}chart.js" defer></script>
+<script src="{{ site.base_url }}explore.js" data-base="{{ site.base_url }}" defer></script>
+{% endblock %}

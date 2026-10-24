@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% set active = "discuss" %}
+{% block title %}Discuss · {{ site.title }}{% endblock %}
+{% block content %}
+<section class="intro">
+  <h4>Discuss</h4>
+  <h5>Ask questions, share analyses, and flag problems with the data. Every dataset page also has its own thread.</h5>
+</section>
+
+<div class="grid">
+  {% for icon, title, body in [
+    ("chat", "General", "Questions about Dathren, the data, or public health data in general."),
+    ("add_circle", "Dataset requests", "Suggest a dataset or code system you want added."),
+    ("report", "Data gotchas", "Quirks, errors, or surprises you found in a dataset."),
+    ("insights", "Show and tell", "Analyses, notebooks, and projects built with Dathren."),
+  ] %}
+  <a class="card" href="{{ site.repo_url ~ '/discussions' if site.repo_url else '#' }}">
+    <div class="card-header"><span class="material-symbols-outlined">{{ icon }}</span> {{ title }}</div>
+    <p class="card-text">{{ body }}</p>
+  </a>
+  {% endfor %}
+</div>
+
+<section class="card wide">
+  <div class="card-header">Latest</div>
+  {% if site.giscus %}
+  <script src="https://giscus.app/client.js"
+    data-repo="{{ site.giscus.repo }}" data-repo-id="{{ site.giscus.repo_id }}"
+    data-category="{{ site.giscus.category }}" data-category-id="{{ site.giscus.category_id }}"
+    data-mapping="specific" data-term="general" data-strict="1"
+    data-reactions-enabled="1" data-input-position="top"
+    data-theme="dark_dimmed" data-lang="en" crossorigin="anonymous" async></script>
+  {% else %}
+  <p class="muted">Discussion isn't set up yet. Add a <code>[giscus]</code> section to <code>site/config.toml</code>.</p>
+  {% endif %}
+</section>
+{% endblock %}
