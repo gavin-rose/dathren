@@ -29,7 +29,7 @@
     data-category="{{ site.giscus.category }}" data-category-id="{{ site.giscus.category_id }}"
     data-mapping="specific" data-term="general" data-strict="1"
     data-reactions-enabled="1" data-input-position="top"
-    data-theme="dark_dimmed" data-lang="en" crossorigin="anonymous" async></script>
+    data-theme="dark_dimmed" data-lang="en" data-loading="lazy" crossorigin="anonymous" async></script>
   {% else %}
   <p class="muted">Discussion isn't set up yet. Add a <code>[giscus]</code> section to <code>site/config.toml</code>.</p>
   {% endif %}

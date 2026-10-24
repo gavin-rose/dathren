@@ -1,14 +1,13 @@
-title = "Dathren"
+title = "dathren"
 tagline = "Public health data, cleaned up and documented."
 # Path prefix the site is served under. Keep "/" when using a custom domain.
 base_url = "/"
 repo_url = "https://github.com/gavin-rose/dathren"
 
 # Discussion threads on each dataset page, stored in GitHub Discussions.
-# Enable Discussions on the repo, install the giscus app, then copy these
-# values from https://giscus.app.
-# [giscus]
-# repo = "gavin-rose/dathren"
-# repo_id = ""
-# category = "Datasets"
-# category_id = ""
+# IDs come from https://giscus.app.
+[giscus]
+repo = "gavin-rose/dathren"
+repo_id = "R_kgDOVVc0Vg"
+category = "Datasets"
+category_id = "DIC_kwDOVVc0Vs4DJeQj"
