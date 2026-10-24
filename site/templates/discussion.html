@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% from "giscus.html" import embed %}
+{% set active = "discuss" %}
+{% set d = discussion %}
+{% block title %}{{ d.title }} · {{ site.title }}{% endblock %}
+{% block content %}
+<section class="intro">
+  <p class="crumbs"><a href="{{ site.base_url }}discuss/">Discuss</a> / <a href="{{ site.base_url }}discuss/{{ category.slug }}/">{{ category.name }}</a></p>
+  <h4>{{ d.title }}</h4>
+</section>
+
+<article class="card wide post">
+  <div class="post-meta">
+    {% if d.author %}<img src="{{ d.author.avatar_url }}" alt="" width="28" height="28"><span>@{{ d.author.login }}</span>{% endif %}
+    <span class="muted">started {{ d.created_at[:10] }}</span>
+    <a class="post-source" href="{{ d.url }}">View on GitHub <span class="material-symbols-outlined">open_in_new</span></a>
+  </div>
+  <div class="post-body">{{ d.body_html|safe }}</div>
+</article>
+
+<section class="card wide">
+  <div class="card-header">Replies</div>
+  {{ embed(site, "number", d.number) }}
+</section>
+{% endblock %}

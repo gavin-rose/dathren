@@ -232,6 +232,7 @@ dependencies = [
  "anyhow",
  "dathren-core",
  "minijinja",
+ "reqwest",
  "serde",
  "serde_json",
  "toml",

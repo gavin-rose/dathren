@@ -24,11 +24,13 @@
     <div class="tooltip" role="status" hidden></div>
   </div>
   <details class="table-view">
-    <summary>Show as table</summary>
-    <table>
-      <thead><tr><th>12 months ending</th><th>{{ meta.measures[0].unit|capitalize }}</th></tr></thead>
-      <tbody>{% for p in page.chart.points|reverse %}<tr><td>{{ p.period }}</td><td>{{ p.value }}</td></tr>{% endfor %}</tbody>
-    </table>
+    <summary><span class="material-symbols-outlined">table_rows</span>Show as table</summary>
+    <div class="table-box">
+      <table>
+        <thead><tr><th>12 months ending</th><th class="num">Adjusted</th><th class="num">Reported</th></tr></thead>
+        <tbody>{% for p in page.chart.points|reverse %}<tr><td>{{ p.period }}</td><td class="num">{{ p.value }}</td><td class="num">{{ p.reported or "" }}</td></tr>{% endfor %}</tbody>
+      </table>
+    </div>
   </details>
   {% endif %}
 </section>
@@ -43,6 +45,7 @@
 
 <section class="card wide">
   <div class="card-header">Measures</div>
+  <div class="table-scroll">
   <table class="measures">
     <thead><tr><th>Id</th><th>Description</th><th>Code</th></tr></thead>
     <tbody>
@@ -51,6 +54,7 @@
       {% endfor %}
     </tbody>
   </table>
+  </div>
 </section>
 
 <section class="card wide">
@@ -60,23 +64,15 @@
     <a class="button" href="{{ site.base_url }}data/{{ meta.id }}/us.json"><span>JSON</span><span class="material-symbols-outlined">download</span></a>
     <a class="button" href="{{ meta.source_url }}"><span>Original source</span><span class="material-symbols-outlined">open_in_new</span></a>
   </div>
-  <p class="muted">National series. Use the CLI for states and filters:</p>
-  <pre class="terminal"><code><span class="prompt">$</span> dathren fetch {{ meta.id }} --geo US --measure {{ meta.measures[0].id }} --since 2020</code></pre>
+  <p class="muted centered">National series. Use the CLI for states and filters:</p>
+  <pre class="terminal centered-block"><code><span class="prompt">$</span> dathren fetch {{ meta.id }} --geo US --measure {{ meta.measures[0].id }} --since 2020</code></pre>
 </section>
 
 <section class="card wide">
   <div class="card-header">Discussion</div>
-  <p class="muted">Share notes, gotchas, and analyses for this dataset. Threads live in GitHub Discussions.</p>
-  {% if site.giscus %}
-  <script src="https://giscus.app/client.js"
-    data-repo="{{ site.giscus.repo }}" data-repo-id="{{ site.giscus.repo_id }}"
-    data-category="{{ site.giscus.category }}" data-category-id="{{ site.giscus.category_id }}"
-    data-mapping="specific" data-term="{{ meta.id }}" data-strict="1"
-    data-reactions-enabled="1" data-input-position="top"
-    data-theme="dark_dimmed" data-lang="en" data-loading="lazy" crossorigin="anonymous" async></script>
-  {% else %}
-  <p class="muted">Discussion isn't set up yet. Add a <code>[giscus]</code> section to <code>site/config.toml</code>.</p>
-  {% endif %}
+  <p class="muted centered">Share notes, gotchas, and analyses for this dataset. Threads live in GitHub Discussions.</p>
+  {% from "giscus.html" import embed %}
+  {{ embed(site, "specific", meta.id) }}
 </section>
 {% endblock %}
 {% block scripts %}<script src="{{ site.base_url }}chart.js" defer></script>{% endblock %}

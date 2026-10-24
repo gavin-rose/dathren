@@ -23,11 +23,17 @@ pub struct Point {
     pub y: f64,
     pub period: String,
     pub value: String,
+    pub reported: Option<String>,
 }
 
 impl LineChart {
     pub fn new(observations: &[&Observation]) -> Option<Self> {
-        let data: Vec<(String, f64)> = observations
+        let plotted: Vec<&Observation> = observations
+            .iter()
+            .copied()
+            .filter(|o| o.best().is_some())
+            .collect();
+        let data: Vec<(String, f64)> = plotted
             .iter()
             .filter_map(|o| Some((o.period.to_string(), o.best()?)))
             .collect();
@@ -107,12 +113,14 @@ impl LineChart {
 
         let points = data
             .iter()
+            .zip(&plotted)
             .enumerate()
-            .map(|(i, (period, v))| Point {
+            .map(|(i, ((period, v), o))| Point {
                 x: x_at(i),
                 y: y_at(*v),
                 period: period.clone(),
                 value: thousands(*v),
+                reported: o.value.map(thousands),
             })
             .collect();
         Some(Self { svg, points })

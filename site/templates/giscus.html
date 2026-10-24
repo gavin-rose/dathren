@@ -1,0 +1,13 @@
+{% macro embed(site, mapping, term) %}
+{% if site.giscus %}
+<script src="https://giscus.app/client.js"
+  data-repo="{{ site.giscus.repo }}" data-repo-id="{{ site.giscus.repo_id }}"
+  data-category="{{ site.giscus.category }}" data-category-id="{{ site.giscus.category_id }}"
+  data-mapping="{{ mapping }}" data-term="{{ term }}" data-strict="1"
+  data-reactions-enabled="1" data-input-position="top"
+  data-theme="{{ site.site_url ~ '/giscus.css' if site.site_url else 'dark_dimmed' }}"
+  data-lang="en" data-loading="lazy" crossorigin="anonymous" async></script>
+{% else %}
+<p class="muted">Discussion isn't set up yet. Add a <code>[giscus]</code> section to <code>site/config.toml</code>.</p>
+{% endif %}
+{% endmacro %}

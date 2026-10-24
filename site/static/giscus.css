@@ -1,0 +1,41 @@
+@import url("https://giscus.app/themes/dark_dimmed.css");
+@import url("https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600&display=swap");
+
+main {
+  --color-canvas-default: #3f3f3f;
+  --color-canvas-overlay: #3f3f3f;
+  --color-canvas-inset: #333333;
+  --color-canvas-subtle: #383838;
+  --color-fg-default: #f3f3f3;
+  --color-fg-muted: #c4c4c4;
+  --color-fg-subtle: #a3a3a3;
+  --color-border-default: rgb(121 169 216 / 0.45);
+  --color-border-muted: rgb(255 255 255 / 0.1);
+  --color-neutral-muted: rgb(121 169 216 / 0.14);
+  --color-accent-fg: #79a9d8;
+  --color-accent-emphasis: #24527d;
+  --color-accent-muted: rgb(121 169 216 / 0.4);
+  --color-accent-subtle: rgb(121 169 216 / 0.14);
+  --color-btn-text: #f3f3f3;
+  --color-btn-bg: #3f3f3f;
+  --color-btn-border: #79a9d8;
+  --color-btn-hover-bg: #474747;
+  --color-btn-hover-border: #79a9d8;
+  --color-btn-active-bg: #4a4a4a;
+  --color-btn-selected-bg: #24527d;
+  --color-btn-primary-text: #ffffff;
+  --color-btn-primary-bg: #24527d;
+  --color-btn-primary-border: #79a9d8;
+  --color-btn-primary-hover-bg: #2b5d8c;
+  --color-btn-primary-hover-border: #79a9d8;
+  --color-btn-primary-selected-bg: #24527d;
+  --color-btn-primary-disabled-text: rgb(255 255 255 / 0.6);
+  --color-btn-primary-disabled-bg: rgb(36 82 125 / 0.6);
+  --color-btn-primary-disabled-border: rgb(121 169 216 / 0.4);
+  --color-segmented-control-bg: #333333;
+  --color-segmented-control-button-bg: #3f3f3f;
+  --color-segmented-control-button-selected-border: #79a9d8;
+  --color-social-reaction-bg-hover: #474747;
+  --color-social-reaction-bg-reacted-hover: rgb(121 169 216 / 0.25);
+  font-family: "Poppins", sans-serif;
+}

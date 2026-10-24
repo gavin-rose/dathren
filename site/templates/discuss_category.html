@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% set active = "discuss" %}
+{% set c = page.category %}
+{% block title %}{{ c.name }} · {{ site.title }}{% endblock %}
+{% block content %}
+<section class="intro">
+  <p class="crumbs"><a href="{{ site.base_url }}discuss/">Discuss</a> / {{ c.name }}</p>
+  <h4><span class="material-symbols-outlined">{{ c.icon }}</span> {{ c.name }}</h4>
+  <h5>{{ c.description }}</h5>
+  {% if site.repo_url %}
+  <a class="button cta" href="{{ site.repo_url }}/discussions/new?category={{ c.github_slug }}"><span>Start a discussion</span><span class="material-symbols-outlined">add</span></a>
+  {% endif %}
+</section>
+
+<section class="card wide">
+  {% if page.discussions %}
+  <ul class="threads">
+    {% for d in page.discussions %}
+    <li>
+      <a href="{{ site.base_url }}discuss/t/{{ d.number }}/">{{ d.title }}</a>
+      {% if d.excerpt %}<p class="thread-excerpt">{{ d.excerpt }}</p>{% endif %}
+      <span class="thread-meta">{% if d.author %}@{{ d.author.login }} · {% endif %}{{ d.comments.total_count }} repl{{ "y" if d.comments.total_count == 1 else "ies" }} · updated {{ d.updated_at[:10] }}</span>
+    </li>
+    {% endfor %}
+  </ul>
+  {% elif live %}
+  <p class="muted centered">No discussions here yet. Be the first to start one.</p>
+  {% else %}
+  <p class="muted centered">Discussions load when the site is built on GitHub.</p>
+  {% endif %}
+</section>
+{% endblock %}

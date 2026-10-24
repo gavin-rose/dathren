@@ -1,7 +1,10 @@
 mod chart;
+mod discussions;
 
 use std::fs;
 use std::path::Path;
+
+use discussions::Discussion;
 
 use anyhow::{Context, Result};
 use dathren_core::{Client, DatasetMeta, Observation, Query, export, registry};
@@ -13,8 +16,27 @@ struct Config {
     title: String,
     tagline: String,
     base_url: String,
+    site_url: Option<String>,
     repo_url: Option<String>,
     giscus: Option<Giscus>,
+    #[serde(default)]
+    discuss: Vec<DiscussCategory>,
+}
+
+#[derive(Deserialize, Serialize)]
+struct DiscussCategory {
+    slug: String,
+    name: String,
+    icon: String,
+    description: String,
+    github_slug: String,
+    category_id: String,
+}
+
+#[derive(Serialize)]
+struct CategoryPage<'a> {
+    category: &'a DiscussCategory,
+    discussions: Vec<Discussion>,
 }
 
 /// Discussion threads backed by GitHub Discussions. See <https://giscus.app>.
@@ -100,7 +122,6 @@ pub fn build(src: &Path, out: &Path, client: &Client) -> Result<()> {
         ("datasets.html", "datasets"),
         ("codes.html", "codes"),
         ("explore.html", "explore"),
-        ("discuss.html", "discuss"),
     ] {
         let dir = out.join(dir);
         fs::create_dir_all(&dir)?;
@@ -108,6 +129,56 @@ pub fn build(src: &Path, out: &Path, client: &Client) -> Result<()> {
             .get_template(template)?
             .render(context! { site => &config, pages => &pages })?;
         fs::write(dir.join("index.html"), html)?;
+    }
+
+    let token = std::env::var("GITHUB_TOKEN").ok().filter(|t| !t.is_empty());
+    let mut categories = Vec::new();
+    for category in &config.discuss {
+        let discussions = match (&token, &config.giscus) {
+            (Some(token), Some(giscus)) => {
+                discussions::fetch(&giscus.repo, &category.category_id, token)
+                    .with_context(|| format!("fetching {} discussions", category.name))?
+            }
+            _ => Vec::new(),
+        };
+        categories.push(CategoryPage {
+            category,
+            discussions,
+        });
+    }
+    let live = token.is_some();
+    let mut recent: Vec<(&DiscussCategory, &Discussion)> = categories
+        .iter()
+        .flat_map(|c| c.discussions.iter().map(move |d| (c.category, d)))
+        .collect();
+    recent.sort_by(|a, b| b.1.updated_at.cmp(&a.1.updated_at));
+    recent.truncate(5);
+    let recent: Vec<_> = recent
+        .into_iter()
+        .map(|(category, discussion)| context! { category, discussion })
+        .collect();
+
+    let dir = out.join("discuss");
+    fs::create_dir_all(&dir)?;
+    let html = env
+        .get_template("discuss.html")?
+        .render(context! { site => &config, categories => &categories, recent, live })?;
+    fs::write(dir.join("index.html"), html)?;
+    for page in &categories {
+        let dir = out.join("discuss").join(&page.category.slug);
+        fs::create_dir_all(&dir)?;
+        let html = env
+            .get_template("discuss_category.html")?
+            .render(context! { site => &config, page => page, live })?;
+        fs::write(dir.join("index.html"), html)?;
+        for discussion in &page.discussions {
+            let dir = out.join("discuss/t").join(discussion.number.to_string());
+            fs::create_dir_all(&dir)?;
+            let html = env
+                .get_template("discussion.html")?
+                .render(context! { site => &config, category => page.category, discussion })?;
+            fs::write(dir.join("index.html"), html)?;
+        }
     }
     Ok(())
 }
@@ -166,6 +237,37 @@ fn copy_dir(from: &Path, to: &Path) -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn discussion_pages_render() {
+        let config: Config =
+            toml::from_str(&fs::read_to_string("../../site/config.toml").unwrap()).unwrap();
+        let mut env = Environment::new();
+        env.set_loader(path_loader("../../site/templates"));
+        let category = &config.discuss[0];
+        let discussion = discussions::tests::sample();
+
+        let html = env
+            .get_template("discussion.html")
+            .unwrap()
+            .render(context! { site => &config, category, discussion => &discussion })
+            .unwrap();
+        assert!(html.contains("Why do 2026 counts look low?"));
+        assert!(html.contains("<strong>low</strong>"));
+        assert!(html.contains(r#"data-mapping="number" data-term="7""#));
+
+        let page = CategoryPage {
+            category,
+            discussions: vec![discussion],
+        };
+        let html = env
+            .get_template("discuss_category.html")
+            .unwrap()
+            .render(context! { site => &config, page => &page, live => true })
+            .unwrap();
+        assert!(html.contains("discuss/t/7/"));
+        assert!(html.contains("3 replies"));
+    }
 
     #[test]
     fn inline_code_escapes_then_wraps() {

@@ -8,30 +8,30 @@
 </section>
 
 <div class="grid">
-  {% for icon, title, body in [
-    ("chat", "General", "Questions about Dathren, the data, or public health data in general."),
-    ("add_circle", "Dataset requests", "Suggest a dataset or code system you want added."),
-    ("report", "Data gotchas", "Quirks, errors, or surprises you found in a dataset."),
-    ("insights", "Show and tell", "Analyses, notebooks, and projects built with Dathren."),
-  ] %}
-  <a class="card" href="{{ site.repo_url ~ '/discussions' if site.repo_url else '#' }}">
-    <div class="card-header"><span class="material-symbols-outlined">{{ icon }}</span> {{ title }}</div>
-    <p class="card-text">{{ body }}</p>
+  {% for c in categories %}
+  <a class="card" href="{{ site.base_url }}discuss/{{ c.category.slug }}/">
+    <div class="card-header"><span class="material-symbols-outlined">{{ c.category.icon }}</span> {{ c.category.name }}</div>
+    <p class="card-text">{{ c.category.description }}</p>
+    {% if live %}<p class="card-count">{{ c.discussions|length }} discussion{{ "" if c.discussions|length == 1 else "s" }}</p>{% endif %}
   </a>
   {% endfor %}
 </div>
 
 <section class="card wide">
-  <div class="card-header">Latest</div>
-  {% if site.giscus %}
-  <script src="https://giscus.app/client.js"
-    data-repo="{{ site.giscus.repo }}" data-repo-id="{{ site.giscus.repo_id }}"
-    data-category="{{ site.giscus.category }}" data-category-id="{{ site.giscus.category_id }}"
-    data-mapping="specific" data-term="general" data-strict="1"
-    data-reactions-enabled="1" data-input-position="top"
-    data-theme="dark_dimmed" data-lang="en" data-loading="lazy" crossorigin="anonymous" async></script>
+  <div class="card-header">Recent</div>
+  {% if recent %}
+  <ul class="threads">
+    {% for r in recent %}{% set d = r.discussion %}
+    <li>
+      <a href="{{ site.base_url }}discuss/t/{{ d.number }}/">{{ d.title }}</a>
+      <span class="thread-meta">{{ r.category.name }} · {{ d.comments.total_count }} repl{{ "y" if d.comments.total_count == 1 else "ies" }} · {{ d.updated_at[:10] }}</span>
+    </li>
+    {% endfor %}
+  </ul>
+  {% elif live %}
+  <p class="muted centered">No discussions yet. Start one in any category above.</p>
   {% else %}
-  <p class="muted">Discussion isn't set up yet. Add a <code>[giscus]</code> section to <code>site/config.toml</code>.</p>
+  <p class="muted centered">Discussions load when the site is built on GitHub.</p>
   {% endif %}
 </section>
 {% endblock %}

@@ -2,6 +2,7 @@ title = "dathren"
 tagline = "Public health data, cleaned up and documented."
 # Path prefix the site is served under. Keep "/" when using a custom domain.
 base_url = "/"
+site_url = "https://dathren.debugr.net"
 repo_url = "https://github.com/gavin-rose/dathren"
 
 # Discussion threads on each dataset page, stored in GitHub Discussions.
@@ -11,3 +12,35 @@ repo = "gavin-rose/dathren"
 repo_id = "R_kgDOVVc0Vg"
 category = "Datasets"
 category_id = "DIC_kwDOVVc0Vs4DJeQj"
+
+[[discuss]]
+slug = "general"
+name = "General"
+icon = "chat"
+description = "Questions about Dathren, the data, or public health data in general."
+github_slug = "general"
+category_id = "DIC_kwDOVVc0Vs4DJeQk"
+
+[[discuss]]
+slug = "requests"
+name = "Dataset requests"
+icon = "add_circle"
+description = "Suggest a dataset or code system you want added."
+github_slug = "dataset-requests"
+category_id = "DIC_kwDOVVc0Vs4DJeQm"
+
+[[discuss]]
+slug = "gotchas"
+name = "Data gotchas"
+icon = "report"
+description = "Quirks, errors, or surprises you found in a dataset."
+github_slug = "data-gotchas"
+category_id = "DIC_kwDOVVc0Vs4DJeQl"
+
+[[discuss]]
+slug = "show-and-tell"
+name = "Show and tell"
+icon = "insights"
+description = "Analyses, notebooks, and projects built with Dathren."
+github_slug = "show-and-tell"
+category_id = "DIC_kwDOVVc0Vs4DJeQn"
