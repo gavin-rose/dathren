@@ -102,12 +102,12 @@
     <a class="button" href="{{ meta.source_url }}"><span>Original source</span><span class="material-symbols-outlined">open_in_new</span></a>
   </div>
   {% if page.download == "us" %}
-  <p class="muted centered">National series. Use the CLI for states and filters:</p>
-  <pre class="terminal centered-block"><code><span class="prompt">$</span> dathren fetch {{ meta.id }} --geo US --measure {{ meta.measures[0].id }} --since 2020</code></pre>
+  <p class="muted centered">The downloads cover the national series. Fetch states, measures, and years from code:</p>
   {% else %}
-  <p class="muted centered">Latest period of the first measure, every {{ page.ranking.level if page.ranking else "place" }}. Use the CLI for other measures and years:</p>
-  <pre class="terminal centered-block"><code><span class="prompt">$</span> dathren fetch {{ meta.id }} --geo CA --measure {{ meta.measures[0].id }}</code></pre>
+  <p class="muted centered">The downloads cover the latest period of the first measure, every {{ page.ranking.level if page.ranking else "place" }}. Fetch other measures and years from code:</p>
   {% endif %}
+  {% from "install.html" import install %}
+  {{ install(meta.id, meta.measures[0].id, "US" if page.download == "us" else "CA") }}
 </section>
 
 <section class="card wide">
