@@ -14,20 +14,20 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { os: ubuntu-latest, target: x86_64 }
-          - { os: ubuntu-latest, target: aarch64 }
+          - { os: ubuntu-latest, target: x86_64, manylinux: auto }
+          - { os: ubuntu-latest, target: aarch64, manylinux: "2_28" }
           - { os: macos-latest, target: aarch64 }
           - { os: macos-15-intel, target: x86_64 }
           - { os: windows-latest, target: x64 }
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: PyO3/maturin-action@v1
         with:
           target: ${{ matrix.target }}
           args: --release --out dist --manifest-path crates/dathren-py/Cargo.toml
-          manylinux: auto
-      - uses: actions/upload-artifact@v4
+          manylinux: ${{ matrix.manylinux || 'auto' }}
+      - uses: actions/upload-artifact@v7
         with:
           name: wheels-${{ matrix.os }}-${{ matrix.target }}
           path: dist
@@ -35,12 +35,12 @@ jobs:
   sdist:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: PyO3/maturin-action@v1
         with:
           command: sdist
           args: --out dist --manifest-path crates/dathren-py/Cargo.toml
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: wheels-sdist
           path: dist
@@ -49,11 +49,11 @@ jobs:
     needs: wheels
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: wheels-ubuntu-latest-x86_64
           path: dist
@@ -67,7 +67,7 @@ jobs:
     permissions:
       id-token: write
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           pattern: wheels-*
           merge-multiple: true
@@ -89,8 +89,8 @@ jobs:
       run:
         working-directory: crates/dathren-node
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
       - uses: dtolnay/rust-toolchain@stable
@@ -98,14 +98,16 @@ jobs:
           targets: ${{ matrix.target }}
       - run: npm install
       - run: npx napi build --platform --release --target ${{ matrix.target }} ${{ matrix.cross }} --js binding.js --dts binding.d.ts
+        env:
+          CFLAGS_aarch64_unknown_linux_gnu: -D__ARM_ARCH=8
       - if: matrix.target == 'x86_64-unknown-linux-gnu'
         run: npm test
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: addon-${{ matrix.target }}
           path: crates/dathren-node/*.node
       - if: matrix.target == 'x86_64-unknown-linux-gnu'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: loader
           path: |
@@ -124,18 +126,18 @@ jobs:
       run:
         working-directory: crates/dathren-node
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
           registry-url: https://registry.npmjs.org
       - run: npm install -g npm@latest
       - run: npm install
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           pattern: addon-*
           path: crates/dathren-node/artifacts
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: loader
           path: crates/dathren-node
@@ -150,7 +152,7 @@ jobs:
   publish-crates:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: dtolnay/rust-toolchain@stable
       - run: cargo test
       - run: cargo publish -p dathren -p dathren-cli
