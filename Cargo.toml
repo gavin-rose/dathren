@@ -1,6 +1,13 @@
 [workspace]
 resolver = "3"
-members = ["crates/dathren-core", "crates/dathren-cli", "crates/dathren-site"]
+members = [
+    "crates/dathren-core",
+    "crates/dathren-cli",
+    "crates/dathren-site",
+    "crates/dathren-py",
+    "crates/dathren-node",
+]
+default-members = ["crates/dathren-core", "crates/dathren-cli", "crates/dathren-site"]
 
 [workspace.package]
 version = "0.1.0"
@@ -9,7 +16,7 @@ license = "MIT"
 repository = "https://github.com/gavin-rose/dathren"
 
 [workspace.dependencies]
-dathren-core = { path = "crates/dathren-core" }
+dathren = { path = "crates/dathren-core", version = "0.1.0" }
 dathren-site = { path = "crates/dathren-site" }
 anyhow = "1"
 clap = { version = "4", features = ["derive"] }

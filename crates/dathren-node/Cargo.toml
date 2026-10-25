@@ -1,0 +1,21 @@
+[package]
+name = "dathren-node"
+description = "Node.js bindings for dathren"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+publish = false
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+dathren.workspace = true
+napi = { version = "3", default-features = false, features = ["napi6"] }
+napi-derive = "3"
+serde.workspace = true
+serde_json.workspace = true
+
+[build-dependencies]
+napi-build = "2"

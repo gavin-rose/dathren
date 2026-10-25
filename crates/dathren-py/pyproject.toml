@@ -1,0 +1,30 @@
+[build-system]
+requires = ["maturin>=1.9,<2"]
+build-backend = "maturin"
+
+[project]
+name = "dathren"
+description = "Public health data, cleaned up and documented."
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.9"
+keywords = ["public health", "cdc", "datasets", "epidemiology", "open data"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Rust",
+    "Topic :: Scientific/Engineering :: Medical Science Apps.",
+    "Intended Audience :: Science/Research",
+]
+dynamic = ["version"]
+
+[project.optional-dependencies]
+pandas = ["pandas>=1.5"]
+
+[project.urls]
+Homepage = "https://dathren.debugr.net"
+Repository = "https://github.com/gavin-rose/dathren"
+
+[tool.maturin]
+python-source = "python"
+module-name = "dathren._core"
+features = ["pyo3/extension-module"]

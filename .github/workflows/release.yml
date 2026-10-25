@@ -1,0 +1,158 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  wheels:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: ubuntu-latest, target: x86_64 }
+          - { os: ubuntu-latest, target: aarch64 }
+          - { os: macos-latest, target: aarch64 }
+          - { os: macos-15-intel, target: x86_64 }
+          - { os: windows-latest, target: x64 }
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: PyO3/maturin-action@v1
+        with:
+          target: ${{ matrix.target }}
+          args: --release --out dist --manifest-path crates/dathren-py/Cargo.toml
+          manylinux: auto
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wheels-${{ matrix.os }}-${{ matrix.target }}
+          path: dist
+
+  sdist:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: PyO3/maturin-action@v1
+        with:
+          command: sdist
+          args: --out dist --manifest-path crates/dathren-py/Cargo.toml
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wheels-sdist
+          path: dist
+
+  test-python:
+    needs: wheels
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/download-artifact@v4
+        with:
+          name: wheels-ubuntu-latest-x86_64
+          path: dist
+      - run: pip install pytest pandas && pip install --no-index --find-links dist dathren
+      - run: pytest crates/dathren-py/tests
+
+  publish-pypi:
+    needs: [wheels, sdist, test-python]
+    runs-on: ubuntu-latest
+    environment: pypi
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: wheels-*
+          merge-multiple: true
+          path: dist
+      - uses: pypa/gh-action-pypi-publish@release/v1
+
+  addons:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: ubuntu-latest, target: x86_64-unknown-linux-gnu }
+          - { os: ubuntu-latest, target: aarch64-unknown-linux-gnu, cross: --use-napi-cross }
+          - { os: macos-latest, target: aarch64-apple-darwin }
+          - { os: macos-15-intel, target: x86_64-apple-darwin }
+          - { os: windows-latest, target: x86_64-pc-windows-msvc }
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        working-directory: crates/dathren-node
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+      - run: npm install
+      - run: npx napi build --platform --release --target ${{ matrix.target }} ${{ matrix.cross }} --js binding.js --dts binding.d.ts
+      - if: matrix.target == 'x86_64-unknown-linux-gnu'
+        run: npm test
+      - uses: actions/upload-artifact@v4
+        with:
+          name: addon-${{ matrix.target }}
+          path: crates/dathren-node/*.node
+      - if: matrix.target == 'x86_64-unknown-linux-gnu'
+        uses: actions/upload-artifact@v4
+        with:
+          name: loader
+          path: |
+            crates/dathren-node/binding.js
+            crates/dathren-node/binding.d.ts
+
+  publish-npm:
+    needs: addons
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+    defaults:
+      run:
+        working-directory: crates/dathren-node
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          registry-url: https://registry.npmjs.org
+      - run: npm install -g npm@latest
+      - run: npm install
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: addon-*
+          path: crates/dathren-node/artifacts
+      - uses: actions/download-artifact@v4
+        with:
+          name: loader
+          path: crates/dathren-node
+      - run: npx napi create-npm-dirs
+      - run: npx napi artifacts --output-dir ./artifacts
+      - run: npx napi pre-publish -t npm --skip-optional-publish
+      - name: Stage platform packages
+        run: for dir in npm/*/; do (cd "$dir" && npm stage publish --access public --provenance); done
+      - name: Stage main package
+        run: npm stage publish --access public --provenance --ignore-scripts
+
+  publish-crates:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - run: cargo test
+      - run: cargo publish -p dathren -p dathren-cli
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}

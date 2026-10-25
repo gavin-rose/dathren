@@ -1,6 +1,6 @@
 use std::fmt::Write;
 
-use dathren_core::Observation;
+use dathren::Observation;
 use serde::Serialize;
 
 const WIDTH: f64 = 720.0;

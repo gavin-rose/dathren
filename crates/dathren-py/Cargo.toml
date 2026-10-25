@@ -1,0 +1,21 @@
+[package]
+name = "dathren-py"
+description = "Python bindings for dathren"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+publish = false
+
+[lib]
+name = "_core"
+crate-type = ["cdylib"]
+
+[dependencies]
+dathren.workspace = true
+pyo3 = { version = "0.30", features = ["abi3-py39"] }
+serde.workspace = true
+serde_json.workspace = true
+
+[build-dependencies]
+pyo3-build-config = "0.30"

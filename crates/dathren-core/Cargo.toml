@@ -1,6 +1,10 @@
 [package]
-name = "dathren-core"
-description = "Normalized, caveat-aware access to public health datasets"
+name = "dathren"
+description = "Public health data, cleaned up and documented: normalized, caveat-aware access to CDC datasets"
+readme = "README.md"
+homepage = "https://dathren.debugr.net"
+keywords = ["public-health", "cdc", "datasets", "epidemiology", "open-data"]
+categories = ["science", "api-bindings"]
 version.workspace = true
 edition.workspace = true
 license.workspace = true

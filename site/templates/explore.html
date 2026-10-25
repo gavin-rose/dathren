@@ -12,17 +12,15 @@
   <form class="query" id="query">
     <label>Dataset<select name="source"></select></label>
     <label>Measure<select name="measure"></select></label>
-    <label>Geography<select name="geo">
-      <option value="US">United States</option>
-      <option disabled>States (coming soon)</option>
-      <option disabled>Counties (coming soon)</option>
-    </select></label>
+    <label>Geography<select name="geo"></select></label>
     <label>Since<select name="since"></select></label>
+    <label class="check"><input type="checkbox" name="compare" checked> Compare with US</label>
   </form>
 </section>
 
 <section class="card wide">
   <div class="card-header" id="result-title">Loading</div>
+  <div class="legend" id="result-legend"></div>
   <div class="chart-wrap" id="result-chart"></div>
   <p class="muted" id="result-status"></p>
   <div class="buttons">
@@ -37,12 +35,13 @@
   <ul class="roadmap">
     <li><span class="material-symbols-outlined">stacked_line_chart</span>Compare several measures on one chart</li>
     <li><span class="material-symbols-outlined">map</span>State and county maps</li>
+    <li><span class="material-symbols-outlined">location_city</span>County-level charts</li>
     <li><span class="material-symbols-outlined">join</span>Combine datasets that share a geography</li>
     <li><span class="material-symbols-outlined">bookmark</span>Shareable links to a saved query</li>
   </ul>
 </section>
 
-<script type="application/json" id="catalog">[{% for p in pages if "nation" in p.meta.geographies %}{{ p.meta|tojson }}{% if not loop.last %},{% endif %}{% endfor %}]</script>
+<script type="application/json" id="catalog">[{% for p in pages if "nation" in p.meta.geographies %}{"meta": {{ p.meta|tojson }}, "states": {{ p.states|tojson }}}{% if not loop.last %},{% endif %}{% endfor %}]</script>
 {% endblock %}
 {% block scripts %}
 <script src="{{ site.base_url }}chart.js" defer></script>

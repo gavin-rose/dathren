@@ -4,7 +4,7 @@ use std::path::PathBuf;
 
 use anyhow::Result;
 use clap::{Parser, Subcommand, ValueEnum};
-use dathren_core::{Client, Query, export, registry};
+use dathren::{Client, Query, export, registry};
 
 #[derive(Parser)]
 #[command(version, about = "Public health data, cleaned up and documented")]
@@ -36,13 +36,6 @@ enum Command {
         /// Write to a file instead of stdout
         #[arg(short, long)]
         output: Option<PathBuf>,
-    },
-    /// Build the static website
-    Site {
-        #[arg(long, default_value = "site")]
-        src: PathBuf,
-        #[arg(long, default_value = "dist")]
-        out: PathBuf,
     },
 }
 
@@ -100,10 +93,6 @@ fn main() -> Result<()> {
                 Format::Csv => export::write_csv(&mut out, &observations)?,
                 Format::Json => serde_json::to_writer_pretty(&mut out, &observations)?,
             }
-        }
-        Command::Site { src, out } => {
-            dathren_site::build(&src, &out, &Client::new()?)?;
-            println!("Site written to {}", out.display());
         }
     }
     Ok(())

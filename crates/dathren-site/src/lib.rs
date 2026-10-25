@@ -1,13 +1,15 @@
 mod chart;
 mod discussions;
 
+use std::collections::BTreeMap;
 use std::fs;
 use std::path::Path;
 
 use discussions::Discussion;
 
 use anyhow::{Context, Result};
-use dathren_core::{Client, DatasetMeta, Geography, Observation, Query, Source, export, registry};
+use dathren::geo::{self, State};
+use dathren::{Client, DatasetMeta, Geography, Observation, Query, Source, export, registry};
 use minijinja::{Environment, Value, context, path_loader};
 use serde::{Deserialize, Serialize};
 
@@ -54,6 +56,8 @@ struct DatasetPage<'a> {
     unit: &'static str,
     /// `us` for datasets with a national series, `latest` for the newest period everywhere.
     download: &'static str,
+    /// States with their own data file, or with counties in `latest`.
+    states: Vec<&'static State>,
     headline: Option<Headline>,
     chart: Option<chart::LineChart>,
     ranking: Option<Ranking>,
@@ -129,7 +133,7 @@ pub fn build(src: &Path, out: &Path, client: &Client) -> Result<()> {
         fs::create_dir_all(&dir)?;
         let html = env
             .get_template(template)?
-            .render(context! { site => &config, pages => &pages })?;
+            .render(context! { site => &config, pages => &pages, states => geo::STATES })?;
         fs::write(dir.join("index.html"), html)?;
     }
 
@@ -206,12 +210,25 @@ fn dataset_page<'a>(
     };
 
     if meta.has(Geography::Nation) {
-        let query = Query {
-            geo: Some("US".into()),
-            ..Query::default()
-        };
-        let observations = source.fetch(client, &query)?;
+        let mut by_geo: BTreeMap<String, Vec<Observation>> = BTreeMap::new();
+        for o in source.fetch(client, &Query::default())? {
+            by_geo.entry(o.geo.clone()).or_default().push(o);
+        }
+        let observations = by_geo.remove("US").unwrap_or_default();
         write("us", &observations)?;
+        let state_dir = data_dir.join("state");
+        fs::create_dir_all(&state_dir)?;
+        let mut states = Vec::new();
+        for (code, rows) in &by_geo {
+            if let Some(state) = geo::state(code) {
+                fs::write(
+                    state_dir.join(format!("{code}.json")),
+                    serde_json::to_vec(rows)?,
+                )?;
+                states.push(state);
+            }
+        }
+        states.sort_by_key(|s| s.name);
         let series: Vec<&Observation> = observations
             .iter()
             .filter(|o| o.measure == primary.id)
@@ -220,6 +237,7 @@ fn dataset_page<'a>(
             meta,
             unit: primary.unit,
             download: "us",
+            states,
             headline: headline(primary.label, primary.unit, &series),
             chart: chart::LineChart::new(&series, primary.unit),
             ranking: None,
@@ -244,6 +262,19 @@ fn dataset_page<'a>(
     write("latest", &observations)?;
 
     let county = meta.has(Geography::County);
+    let mut states: Vec<&'static State> = geo::STATES
+        .iter()
+        .filter(|s| {
+            observations.iter().any(|o| {
+                if county {
+                    o.geo.len() == 5 && o.geo.starts_with(s.fips)
+                } else {
+                    o.geo == s.abbr
+                }
+            })
+        })
+        .collect();
+    states.sort_by_key(|s| s.name);
     let mut reported: Vec<&Observation> = observations
         .iter()
         .filter(|o| o.value.is_some() && o.geo != "US")
@@ -273,6 +304,7 @@ fn dataset_page<'a>(
         meta,
         unit: primary.unit,
         download: "latest",
+        states,
         headline: None,
         chart: None,
         ranking: newest.map(|period| Ranking {

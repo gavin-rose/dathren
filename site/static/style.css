@@ -13,6 +13,7 @@
   --grid: rgb(255 255 255 / 0.08);
   --baseline: rgb(255 255 255 / 0.3);
   --series-1: #5f93c6;
+  --reference: #a3a3a3;
 }
 
 * { box-sizing: border-box; }
@@ -248,6 +249,7 @@ footer a { white-space: nowrap; }
 .card-header .material-symbols-outlined { font-size: 20px; }
 .card-text { margin: 0; font-size: 14px; color: var(--text); }
 .note { margin: 12px 0 0; }
+.card-header + .note { margin: 0 0 12px; }
 .pill { display: inline-block; padding: 1px 10px; border: 1px solid var(--accent); border-radius: 999px; color: var(--accent); font-size: 12px; }
 
 .search { display: flex; align-items: center; gap: 10px; width: 1080px; max-width: 100%; margin: 0 auto 28px; padding: 12px 16px; border: 1px solid var(--accent); border-radius: 10px; box-shadow: 0 0 5px var(--accent); }
@@ -257,18 +259,6 @@ footer a { white-space: nowrap; }
 
 .query { display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr)); }
 .query label { display: flex; flex-direction: column; gap: 6px; font-size: 13px; color: var(--accent); }
-.query select {
-  appearance: none;
-  padding: 8px 32px 8px 12px;
-  color: var(--text);
-  font: inherit;
-  font-size: 14px;
-  background: var(--bg) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' fill='none' stroke='%2379a9d8' stroke-width='1.5'/%3E%3C/svg%3E") no-repeat right 12px center;
-  border: 1px solid var(--accent);
-  border-radius: 10px;
-  cursor: pointer;
-}
-.query select:focus-visible { outline: none; box-shadow: 0 0 8px var(--accent-glow); }
 button.button { font: inherit; font-size: 15px; cursor: pointer; }
 
 .roadmap { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr)); }
@@ -298,6 +288,33 @@ h4 .material-symbols-outlined { font-size: 26px; vertical-align: -4px; }
 .post-body img { max-width: 100%; }
 .post-body pre { padding: 12px 16px; background: var(--code-bg); border-radius: 10px; overflow-x: auto; }
 .post-body blockquote { margin: 0; padding-left: 14px; border-left: 3px solid var(--accent); color: var(--text-muted); }
+
+.picker { display: flex; justify-content: center; align-items: center; gap: 10px; margin: 2px 0 10px; font-size: 14px; color: var(--accent); }
+.picker select, .query select {
+  appearance: none;
+  padding: 8px 32px 8px 12px;
+  color: var(--text);
+  font: inherit;
+  font-size: 14px;
+  background: var(--bg) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' fill='none' stroke='%2379a9d8' stroke-width='1.5'/%3E%3C/svg%3E") no-repeat right 12px center;
+  border: 1px solid var(--accent);
+  border-radius: 10px;
+  cursor: pointer;
+}
+.picker select { min-width: 240px; }
+.picker select:focus-visible, .query select:focus-visible { outline: none; box-shadow: 0 0 8px var(--accent-glow); }
+.query .check { flex-direction: row; align-items: center; gap: 8px; align-self: end; padding-bottom: 9px; color: var(--text); cursor: pointer; }
+.query .check:has(input:disabled) { color: var(--text-muted); cursor: default; }
+.query .check input { accent-color: var(--accent); width: 16px; height: 16px; }
+
+.legend { display: flex; justify-content: center; gap: 20px; font-size: 13px; color: var(--text); }
+.legend:empty { display: none; }
+.legend-item { display: inline-flex; align-items: center; gap: 8px; }
+.legend-item .swatch { width: 18px; height: 0; border-top: 2px solid var(--series-1); }
+.legend-item.reference .swatch { border-top: 2px dashed var(--reference); }
+.chart .series.reference { stroke: var(--reference); stroke-dasharray: 5 4; }
+.chart .marker.reference { fill: var(--reference); }
+.chart .muted-label { fill: var(--text-muted); font-weight: 400; }
 
 @media only screen and (max-width: 700px) {
   .grid, .caveats { grid-template-columns: 1fr; }

@@ -33,6 +33,17 @@
 </section>
 
 <section class="card wide">
+  <div class="card-header">State FIPS codes</div>
+  <p class="muted centered note">Federal codes for states and territories. County codes start with their state's code, so 01001 is a county in Alabama (01).</p>
+  <div class="table-box">
+    <table>
+      <thead><tr><th>Code</th><th>State or territory</th><th>Abbreviation</th></tr></thead>
+      <tbody>{% for s in states %}<tr><td class="code">{{ s.fips }}</td><td>{{ s.name }}</td><td>{{ s.abbr }}</td></tr>{% endfor %}</tbody>
+    </table>
+  </div>
+</section>
+
+<section class="card wide">
   <div class="card-header">Code systems</div>
   <table>
     <thead><tr><th>System</th><th>Covers</th><th>Publisher</th><th>Status</th></tr></thead>
@@ -46,7 +57,7 @@
         ("FIPS", "States and counties", "Census Bureau"),
         ("LOINC", "Lab tests", "Regenstrief Institute"),
       ] %}
-      <tr><td class="nowrap">{{ name }}</td><td>{{ covers }}</td><td class="nowrap">{{ publisher }}</td><td><span class="pill">Planned</span></td></tr>
+      <tr><td class="nowrap">{{ name }}</td><td>{{ covers }}</td><td class="nowrap">{{ publisher }}</td><td><span class="pill">{{ "States added" if name == "FIPS" else "Planned" }}</span></td></tr>
       {% endfor %}
     </tbody>
   </table>

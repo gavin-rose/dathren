@@ -10,16 +10,29 @@
   <p class="publisher">{{ meta.publisher }} · Updated {{ meta.update_cadence|lower }}</p>
 </section>
 
+<div id="dataset" data-base="{{ site.base_url }}" data-id="{{ meta.id }}" data-measure="{{ meta.measures[0].id }}"
+  data-label="{{ meta.measures[0].label }}" data-unit="{{ page.unit }}" data-period-label="{{ meta.period_label }}"></div>
+
 {% if page.headline %}
 <section class="card wide">
-  <div class="card-header">{{ page.headline.label }}, United States</div>
+  <div class="card-header" id="chart-title">{{ page.headline.label }}, United States</div>
+  {% if page.states %}
+  <div class="picker">
+    <label for="geo-picker">Show</label>
+    <select id="geo-picker">
+      <option value="US">United States</option>
+      {% for s in page.states %}<option value="{{ s.abbr }}">{{ s.name }}</option>{% endfor %}
+    </select>
+  </div>
+  {% endif %}
   <div class="figure-head">
     <p class="muted">{{ meta.series_note }}</p>
-    <p class="stat"><strong>{{ page.headline.value }}</strong>
-      {% if page.unit != "deaths" %}{{ page.unit }}, {% endif %}{{ meta.period_label|lower }} {{ page.headline.period }}{% if page.headline.reported %}, {{ page.headline.reported }} reported so far{% endif %}</p>
+    <p class="stat"><strong id="stat-value">{{ page.headline.value }}</strong>
+      <span id="stat-detail">{% if page.unit != "deaths" %}{{ page.unit }}, {% endif %}{{ meta.period_label|lower }} {{ page.headline.period }}{% if page.headline.reported %}, {{ page.headline.reported }} reported so far{% endif %}</span></p>
   </div>
+  <div class="legend" id="chart-legend"></div>
   {% if page.chart %}
-  <div class="chart-wrap" data-points='{{ page.chart.points|tojson }}' data-period-label="{{ meta.period_label }}">
+  <div class="chart-wrap" id="main-chart" data-points='{{ page.chart.points|tojson }}' data-period-label="{{ meta.period_label }}">
     {{ page.chart.svg|safe }}
     <div class="tooltip" role="status" hidden></div>
   </div>
@@ -28,7 +41,7 @@
     <div class="table-box">
       <table>
         <thead><tr><th>{{ meta.period_label }}</th>{% if page.chart.has_reported %}<th class="num">Adjusted</th><th class="num">Reported</th>{% else %}<th class="num">{{ page.unit|capitalize }}</th>{% endif %}</tr></thead>
-        <tbody>{% for p in page.chart.points|reverse %}<tr><td>{{ p.period }}</td><td class="num">{{ p.value }}</td>{% if page.chart.has_reported %}<td class="num">{{ p.reported or "" }}</td>{% endif %}</tr>{% endfor %}</tbody>
+        <tbody id="chart-table" data-reported="{{ "1" if page.chart.has_reported else "" }}">{% for p in page.chart.points|reverse %}<tr><td>{{ p.period }}</td><td class="num">{{ p.value }}</td>{% if page.chart.has_reported %}<td class="num">{{ p.reported or "" }}</td>{% endif %}</tr>{% endfor %}</tbody>
       </table>
     </div>
   </details>
@@ -37,6 +50,15 @@
 {% elif page.ranking %}{% set r = page.ranking %}
 <section class="card wide">
   <div class="card-header">{{ r.label }}, by {{ r.level }}</div>
+  {% if r.level == "county" and page.states %}
+  <div class="picker">
+    <label for="rank-filter">Show</label>
+    <select id="rank-filter" data-states='{{ page.states|tojson }}'>
+      <option value="">Highest {{ r.rows|length }} nationwide</option>
+      {% for s in page.states %}<option value="{{ s.abbr }}">All counties in {{ s.name }}</option>{% endfor %}
+    </select>
+  </div>
+  {% endif %}
   <div class="figure-head">
     <p class="muted">{{ meta.series_note }}</p>
     <p class="stat"><strong>{{ r.reported_label }}</strong>{{ "counties" if r.level == "county" else "states and territories" }} reported, {{ meta.period_label|lower }} {{ r.period }}</p>
@@ -44,10 +66,10 @@
   <div class="table-box ranking">
     <table>
       <thead><tr><th>#</th><th>{{ r.level|capitalize }}</th><th class="num">{{ page.unit|capitalize }}</th>{% if r.rows and r.rows[0].ci %}<th class="num">95% CI</th>{% endif %}</tr></thead>
-      <tbody>{% for row in r.rows %}<tr><td class="rank">{{ loop.index }}</td><td>{{ row.name }}</td><td class="num">{{ row.value }}</td>{% if row.ci %}<td class="num muted">{{ row.ci }}</td>{% endif %}</tr>{% endfor %}</tbody>
+      <tbody id="rank-body">{% for row in r.rows %}<tr><td class="rank">{{ loop.index }}</td><td>{{ row.name }}</td><td class="num">{{ row.value }}</td>{% if row.ci %}<td class="num muted">{{ row.ci }}</td>{% endif %}</tr>{% endfor %}</tbody>
     </table>
   </div>
-  {% if r.reported > r.rows|length %}<p class="muted centered note">Showing the highest {{ r.rows|length }} of {{ r.reported_label }}. Download the full list below.</p>{% endif %}
+  <p class="muted centered note" id="rank-note">{% if r.reported > r.rows|length %}Showing the highest {{ r.rows|length }} of {{ r.reported_label }}. Download the full list below.{% endif %}</p>
 </section>
 {% endif %}
 
@@ -95,4 +117,7 @@
   {{ embed(site, "specific", meta.id) }}
 </section>
 {% endblock %}
-{% block scripts %}<script src="{{ site.base_url }}chart.js" defer></script>{% endblock %}
+{% block scripts %}
+<script src="{{ site.base_url }}chart.js" defer></script>
+<script src="{{ site.base_url }}dataset.js" defer></script>
+{% endblock %}

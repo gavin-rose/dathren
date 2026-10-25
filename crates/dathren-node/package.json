@@ -1,0 +1,47 @@
+{
+  "name": "dathren",
+  "version": "0.1.0",
+  "description": "Public health data, cleaned up and documented.",
+  "license": "MIT",
+  "homepage": "https://dathren.debugr.net",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/gavin-rose/dathren.git",
+    "directory": "crates/dathren-node"
+  },
+  "keywords": [
+    "public health",
+    "cdc",
+    "datasets",
+    "epidemiology",
+    "open data"
+  ],
+  "main": "index.js",
+  "types": "index.d.ts",
+  "files": [
+    "index.js",
+    "index.d.ts",
+    "binding.js",
+    "binding.d.ts"
+  ],
+  "engines": {
+    "node": ">= 18"
+  },
+  "napi": {
+    "binaryName": "dathren",
+    "targets": [
+      "x86_64-apple-darwin",
+      "aarch64-apple-darwin",
+      "x86_64-unknown-linux-gnu",
+      "aarch64-unknown-linux-gnu",
+      "x86_64-pc-windows-msvc"
+    ]
+  },
+  "scripts": {
+    "build": "napi build --platform --release --js binding.js --dts binding.d.ts",
+    "test": "node --test \"test/*.test.js\""
+  },
+  "devDependencies": {
+    "@napi-rs/cli": "^3.4.0"
+  }
+}
