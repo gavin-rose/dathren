@@ -93,7 +93,7 @@ Windows, tests them, and publishes to crates.io, PyPI, and npm.
 
 npm releases are staged, not published directly. Approve them on npmjs.com
 under **Staged Packages**, or with `npm stage approve <stage-id>`. Approve the
-five platform packages (`dathren-darwin-arm64` and so on) along with `dathren`.
+five platform packages (`@dathren/dathren-darwin-arm64` and so on) along with `dathren`.
 
 ## License
 

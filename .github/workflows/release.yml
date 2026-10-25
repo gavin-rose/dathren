@@ -156,6 +156,12 @@ jobs:
         run: |
           wanted() { [ "$PACKAGES" = all ] || [[ " $PACKAGES " == *" $1 "* ]]; }
           stage() {
+            local spec
+            spec=$(node -p 'const p = require("./package.json"); p.name + "@" + p.version')
+            if npm view "$spec" version > /dev/null 2>&1; then
+              echo "$spec is already published, skipping"
+              return 0
+            fi
             for attempt in 1 2 3; do
               npm stage publish --access public --provenance --ignore-scripts && return 0
               echo "Attempt $attempt failed, retrying"
