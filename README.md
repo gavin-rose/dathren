@@ -24,9 +24,13 @@ cargo run -p dathren-cli -- fetch cdc-vsrr-overdose --geo OH --format json -o oh
 
 ## Datasets
 
-| Id | Source |
-|----|--------|
-| `cdc-vsrr-overdose` | CDC NCHS provisional drug overdose death counts |
+| Id | Source | Geography |
+|----|--------|-----------|
+| `cdc-vsrr-overdose` | CDC NCHS provisional drug overdose death counts | US, states |
+| `nchs-mortality-rates` | CDC NCHS provisional death rates by cause | US, states |
+| `brfss-mental-health` | CDC BRFSS mental health indicators | States |
+| `cdc-vsrr-county-overdose` | CDC NCHS provisional county-level drug overdose deaths | Counties |
+| `cdc-places-county` | CDC PLACES local health estimates | Counties |
 
 ## Website
 

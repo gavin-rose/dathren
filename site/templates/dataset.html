@@ -14,12 +14,12 @@
 <section class="card wide">
   <div class="card-header">{{ page.headline.label }}, United States</div>
   <div class="figure-head">
-    <p class="muted">Rolling 12-month total, using the publisher's adjusted counts where available.</p>
+    <p class="muted">{{ meta.series_note }}</p>
     <p class="stat"><strong>{{ page.headline.value }}</strong>
-      12 months ending {{ page.headline.period }}{% if page.headline.reported %}, {{ page.headline.reported }} reported so far{% endif %}</p>
+      {% if page.unit != "deaths" %}{{ page.unit }}, {% endif %}{{ meta.period_label|lower }} {{ page.headline.period }}{% if page.headline.reported %}, {{ page.headline.reported }} reported so far{% endif %}</p>
   </div>
   {% if page.chart %}
-  <div class="chart-wrap" data-points='{{ page.chart.points|tojson }}'>
+  <div class="chart-wrap" data-points='{{ page.chart.points|tojson }}' data-period-label="{{ meta.period_label }}">
     {{ page.chart.svg|safe }}
     <div class="tooltip" role="status" hidden></div>
   </div>
@@ -27,12 +27,27 @@
     <summary><span class="material-symbols-outlined">table_rows</span>Show as table</summary>
     <div class="table-box">
       <table>
-        <thead><tr><th>12 months ending</th><th class="num">Adjusted</th><th class="num">Reported</th></tr></thead>
-        <tbody>{% for p in page.chart.points|reverse %}<tr><td>{{ p.period }}</td><td class="num">{{ p.value }}</td><td class="num">{{ p.reported or "" }}</td></tr>{% endfor %}</tbody>
+        <thead><tr><th>{{ meta.period_label }}</th>{% if page.chart.has_reported %}<th class="num">Adjusted</th><th class="num">Reported</th>{% else %}<th class="num">{{ page.unit|capitalize }}</th>{% endif %}</tr></thead>
+        <tbody>{% for p in page.chart.points|reverse %}<tr><td>{{ p.period }}</td><td class="num">{{ p.value }}</td>{% if page.chart.has_reported %}<td class="num">{{ p.reported or "" }}</td>{% endif %}</tr>{% endfor %}</tbody>
       </table>
     </div>
   </details>
   {% endif %}
+</section>
+{% elif page.ranking %}{% set r = page.ranking %}
+<section class="card wide">
+  <div class="card-header">{{ r.label }}, by {{ r.level }}</div>
+  <div class="figure-head">
+    <p class="muted">{{ meta.series_note }}</p>
+    <p class="stat"><strong>{{ r.reported_label }}</strong>{{ "counties" if r.level == "county" else "states and territories" }} reported, {{ meta.period_label|lower }} {{ r.period }}</p>
+  </div>
+  <div class="table-box ranking">
+    <table>
+      <thead><tr><th>#</th><th>{{ r.level|capitalize }}</th><th class="num">{{ page.unit|capitalize }}</th>{% if r.rows and r.rows[0].ci %}<th class="num">95% CI</th>{% endif %}</tr></thead>
+      <tbody>{% for row in r.rows %}<tr><td class="rank">{{ loop.index }}</td><td>{{ row.name }}</td><td class="num">{{ row.value }}</td>{% if row.ci %}<td class="num muted">{{ row.ci }}</td>{% endif %}</tr>{% endfor %}</tbody>
+    </table>
+  </div>
+  {% if r.reported > r.rows|length %}<p class="muted centered note">Showing the highest {{ r.rows|length }} of {{ r.reported_label }}. Download the full list below.</p>{% endif %}
 </section>
 {% endif %}
 
@@ -60,12 +75,17 @@
 <section class="card wide">
   <div class="card-header">Get the data</div>
   <div class="buttons">
-    <a class="button" href="{{ site.base_url }}data/{{ meta.id }}/us.csv"><span>CSV</span><span class="material-symbols-outlined">download</span></a>
-    <a class="button" href="{{ site.base_url }}data/{{ meta.id }}/us.json"><span>JSON</span><span class="material-symbols-outlined">download</span></a>
+    <a class="button" href="{{ site.base_url }}data/{{ meta.id }}/{{ page.download }}.csv"><span>CSV</span><span class="material-symbols-outlined">download</span></a>
+    <a class="button" href="{{ site.base_url }}data/{{ meta.id }}/{{ page.download }}.json"><span>JSON</span><span class="material-symbols-outlined">download</span></a>
     <a class="button" href="{{ meta.source_url }}"><span>Original source</span><span class="material-symbols-outlined">open_in_new</span></a>
   </div>
+  {% if page.download == "us" %}
   <p class="muted centered">National series. Use the CLI for states and filters:</p>
   <pre class="terminal centered-block"><code><span class="prompt">$</span> dathren fetch {{ meta.id }} --geo US --measure {{ meta.measures[0].id }} --since 2020</code></pre>
+  {% else %}
+  <p class="muted centered">Latest period of the first measure, every {{ page.ranking.level if page.ranking else "place" }}. Use the CLI for other measures and years:</p>
+  <pre class="terminal centered-block"><code><span class="prompt">$</span> dathren fetch {{ meta.id }} --geo CA --measure {{ meta.measures[0].id }}</code></pre>
+  {% endif %}
 </section>
 
 <section class="card wide">

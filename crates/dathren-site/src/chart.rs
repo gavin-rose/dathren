@@ -15,6 +15,7 @@ const MAX_TICKS: f64 = 6.0;
 pub struct LineChart {
     pub svg: String,
     pub points: Vec<Point>,
+    pub has_reported: bool,
 }
 
 #[derive(Serialize)]
@@ -27,7 +28,7 @@ pub struct Point {
 }
 
 impl LineChart {
-    pub fn new(observations: &[&Observation]) -> Option<Self> {
+    pub fn new(observations: &[&Observation], unit: &str) -> Option<Self> {
         let plotted: Vec<&Observation> = observations
             .iter()
             .copied()
@@ -70,12 +71,12 @@ impl LineChart {
             );
         }
 
-        // Label every January, thinning out so labels never collide.
-        let januaries: Vec<usize> = (0..data.len())
-            .filter(|&i| data[i].0.ends_with("-01"))
+        // Label the first period of each year, thinning out so labels never collide.
+        let year_starts: Vec<usize> = (0..data.len())
+            .filter(|&i| i == 0 || data[i].0[..4] != data[i - 1].0[..4])
             .collect();
-        let every = januaries.len().div_ceil(8).max(1);
-        for &i in januaries.iter().step_by(every) {
+        let every = year_starts.len().div_ceil(8).max(1);
+        for &i in year_starts.iter().step_by(every) {
             let _ = write!(
                 svg,
                 r#"<text class="tick" x="{:.1}" y="{}" text-anchor="middle">{}</text>"#,
@@ -103,7 +104,7 @@ impl LineChart {
             svg,
             r#"<circle class="marker" cx="{lx:.1}" cy="{ly:.1}" r="4"/><text class="direct-label" x="{lx:.1}" y="{:.1}" text-anchor="end">{}</text>"#,
             ly - 10.0,
-            thousands(data[last].1),
+            format_value(data[last].1, unit),
         );
         let _ = write!(
             svg,
@@ -119,11 +120,16 @@ impl LineChart {
                 x: x_at(i),
                 y: y_at(*v),
                 period: period.clone(),
-                value: thousands(*v),
-                reported: o.value.map(thousands),
+                value: format_value(*v, unit),
+                reported: o.adjusted_value.and(o.value).map(|r| format_value(r, unit)),
             })
             .collect();
-        Some(Self { svg, points })
+        let has_reported = plotted.iter().any(|o| o.adjusted_value.is_some());
+        Some(Self {
+            svg,
+            points,
+            has_reported,
+        })
     }
 }
 
@@ -140,6 +146,15 @@ fn nice_scale(max: f64) -> (f64, f64) {
         .map(|step| (step, step * (max / step).ceil()))
         .find(|(step, top)| top / step <= MAX_TICKS)
         .unwrap()
+}
+
+/// Counts get thousands separators; rates and percents get one decimal place.
+pub fn format_value(v: f64, unit: &str) -> String {
+    if unit == "deaths" {
+        thousands(v)
+    } else {
+        format!("{v:.1}")
+    }
 }
 
 pub fn thousands(v: f64) -> String {

@@ -15,7 +15,10 @@
     <p>{{ page.meta.summary }}</p>
     {% if page.headline %}
     <p class="stat"><strong>{{ page.headline.value }}</strong>
-      {{ page.headline.label|lower }}, 12 months ending {{ page.headline.period }}</p>
+      {{ page.headline.label|lower }}{% if page.unit != "deaths" %} ({{ page.unit }}){% endif %}, US, {{ page.meta.period_label|lower }} {{ page.headline.period }}</p>
+    {% elif page.ranking %}
+    <p class="stat"><strong>{{ page.ranking.reported_label }}</strong>
+      {{ "counties" if page.ranking.level == "county" else "states and territories" }} reported, {{ page.meta.period_label|lower }} {{ page.ranking.period }}</p>
     {% endif %}
   </div>
   <span class="material-symbols-outlined card-link">open_in_new</span>

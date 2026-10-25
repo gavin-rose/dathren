@@ -25,7 +25,7 @@ function attachHover(wrap) {
     value.textContent = nearest.value;
     const period = document.createElement("div");
     period.className = "p";
-    period.textContent = `12 months ending ${nearest.period}`;
+    period.textContent = `${wrap.dataset.periodLabel} ${nearest.period}`;
     tip.append(value, period);
     tip.hidden = false;
 

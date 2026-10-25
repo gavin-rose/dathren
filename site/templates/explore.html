@@ -29,7 +29,7 @@
     <button class="button" type="button" id="download"><span>Download CSV</span><span class="material-symbols-outlined">download</span></button>
     <button class="button" type="button" id="copy"><span>Copy command</span><span class="material-symbols-outlined">content_copy</span></button>
   </div>
-  <pre class="terminal"><code><span class="prompt">$</span> <span id="command"></span></code></pre>
+  <pre class="terminal centered-block"><code><span class="prompt">$</span> <span id="command"></span></code></pre>
 </section>
 
 <section class="card wide">
@@ -42,7 +42,7 @@
   </ul>
 </section>
 
-<script type="application/json" id="catalog">[{% for p in pages %}{{ p.meta|tojson }}{% if not loop.last %},{% endif %}{% endfor %}]</script>
+<script type="application/json" id="catalog">[{% for p in pages if "nation" in p.meta.geographies %}{{ p.meta|tojson }}{% if not loop.last %},{% endif %}{% endfor %}]</script>
 {% endblock %}
 {% block scripts %}
 <script src="{{ site.base_url }}chart.js" defer></script>

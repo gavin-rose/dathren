@@ -7,7 +7,7 @@ use std::path::Path;
 use discussions::Discussion;
 
 use anyhow::{Context, Result};
-use dathren_core::{Client, DatasetMeta, Observation, Query, export, registry};
+use dathren_core::{Client, DatasetMeta, Geography, Observation, Query, Source, export, registry};
 use minijinja::{Environment, Value, context, path_loader};
 use serde::{Deserialize, Serialize};
 
@@ -51,8 +51,12 @@ struct Giscus {
 #[derive(Serialize)]
 struct DatasetPage<'a> {
     meta: &'a DatasetMeta,
+    unit: &'static str,
+    /// `us` for datasets with a national series, `latest` for the newest period everywhere.
+    download: &'static str,
     headline: Option<Headline>,
     chart: Option<chart::LineChart>,
+    ranking: Option<Ranking>,
 }
 
 #[derive(Serialize)]
@@ -62,6 +66,26 @@ struct Headline {
     value: String,
     reported: Option<String>,
 }
+
+/// The newest period of the primary measure, for datasets without a national series.
+#[derive(Serialize)]
+struct Ranking {
+    label: &'static str,
+    level: &'static str,
+    period: String,
+    reported: usize,
+    reported_label: String,
+    rows: Vec<RankRow>,
+}
+
+#[derive(Serialize)]
+struct RankRow {
+    name: String,
+    value: String,
+    ci: Option<String>,
+}
+
+const COUNTY_RANKING_ROWS: usize = 15;
 
 pub fn build(src: &Path, out: &Path, client: &Client) -> Result<()> {
     let config_path = src.join("config.toml");
@@ -82,31 +106,9 @@ pub fn build(src: &Path, out: &Path, client: &Client) -> Result<()> {
 
     let mut pages = Vec::new();
     for source in registry::all() {
-        let meta = source.meta();
-        let observations = source
-            .fetch(
-                client,
-                &Query {
-                    geo: Some("US".into()),
-                    ..Query::default()
-                },
-            )
-            .with_context(|| format!("fetching {}", meta.id))?;
-
-        let data_dir = out.join("data").join(meta.id);
-        fs::create_dir_all(&data_dir)?;
-        fs::write(data_dir.join("us.json"), serde_json::to_vec(&observations)?)?;
-        export::write_csv(fs::File::create(data_dir.join("us.csv"))?, &observations)?;
-
-        let primary: Vec<&Observation> = match meta.measures.first() {
-            Some(m) => observations.iter().filter(|o| o.measure == m.id).collect(),
-            None => Vec::new(),
-        };
-        pages.push(DatasetPage {
-            meta,
-            headline: headline(meta, &primary),
-            chart: chart::LineChart::new(&primary),
-        });
+        let page = dataset_page(*source, client, &out.join("data").join(source.meta().id))
+            .with_context(|| format!("building {}", source.meta().id))?;
+        pages.push(page);
     }
 
     for page in &pages {
@@ -183,17 +185,125 @@ pub fn build(src: &Path, out: &Path, client: &Client) -> Result<()> {
     Ok(())
 }
 
-fn headline(meta: &DatasetMeta, observations: &[&Observation]) -> Option<Headline> {
-    let latest = observations.iter().rev().find(|o| o.best().is_some())?;
+fn dataset_page<'a>(
+    source: &'a dyn Source,
+    client: &Client,
+    data_dir: &Path,
+) -> Result<DatasetPage<'a>> {
+    let meta = source.meta();
+    let primary = meta.measures.first().context("dataset has no measures")?;
+    fs::create_dir_all(data_dir)?;
+    let write = |name: &str, observations: &[Observation]| -> Result<()> {
+        fs::write(
+            data_dir.join(format!("{name}.json")),
+            serde_json::to_vec(observations)?,
+        )?;
+        export::write_csv(
+            fs::File::create(data_dir.join(format!("{name}.csv")))?,
+            observations,
+        )?;
+        Ok(())
+    };
+
+    if meta.has(Geography::Nation) {
+        let query = Query {
+            geo: Some("US".into()),
+            ..Query::default()
+        };
+        let observations = source.fetch(client, &query)?;
+        write("us", &observations)?;
+        let series: Vec<&Observation> = observations
+            .iter()
+            .filter(|o| o.measure == primary.id)
+            .collect();
+        return Ok(DatasetPage {
+            meta,
+            unit: primary.unit,
+            download: "us",
+            headline: headline(primary.label, primary.unit, &series),
+            chart: chart::LineChart::new(&series, primary.unit),
+            ranking: None,
+        });
+    }
+
+    let recent = Query {
+        measures: vec![primary.id.into()],
+        since_year: Some(current_year() - 2),
+        ..Query::default()
+    };
+    let mut observations = source.fetch(client, &recent)?;
+    if observations.is_empty() {
+        let all = Query {
+            measures: vec![primary.id.into()],
+            ..Query::default()
+        };
+        observations = source.fetch(client, &all)?;
+    }
+    let newest = observations.iter().map(|o| o.period).max();
+    observations.retain(|o| Some(o.period) == newest);
+    write("latest", &observations)?;
+
+    let county = meta.has(Geography::County);
+    let mut reported: Vec<&Observation> = observations
+        .iter()
+        .filter(|o| o.value.is_some() && o.geo != "US")
+        .collect();
+    reported.sort_by(|a, b| b.value.partial_cmp(&a.value).unwrap());
+    let shown = if county {
+        COUNTY_RANKING_ROWS
+    } else {
+        reported.len()
+    };
+    let rows = reported
+        .iter()
+        .take(shown)
+        .map(|o| RankRow {
+            name: o.geo_name.clone().unwrap_or_else(|| o.geo.clone()),
+            value: chart::format_value(o.value.unwrap(), primary.unit),
+            ci: o.ci_low.zip(o.ci_high).map(|(lo, hi)| {
+                format!(
+                    "{} to {}",
+                    chart::format_value(lo, primary.unit),
+                    chart::format_value(hi, primary.unit)
+                )
+            }),
+        })
+        .collect();
+    Ok(DatasetPage {
+        meta,
+        unit: primary.unit,
+        download: "latest",
+        headline: None,
+        chart: None,
+        ranking: newest.map(|period| Ranking {
+            label: primary.label,
+            level: if county { "county" } else { "state" },
+            period: period.to_string(),
+            reported: reported.len(),
+            reported_label: chart::thousands(reported.len() as f64),
+            rows,
+        }),
+    })
+}
+
+fn headline(label: &'static str, unit: &str, series: &[&Observation]) -> Option<Headline> {
+    let latest = series.iter().rev().find(|o| o.best().is_some())?;
     Some(Headline {
-        label: meta.measures.first()?.label,
+        label,
         period: latest.period.to_string(),
-        value: chart::thousands(latest.best()?),
+        value: chart::format_value(latest.best()?, unit),
         reported: latest
             .adjusted_value
             .and(latest.value)
-            .map(chart::thousands),
+            .map(|v| chart::format_value(v, unit)),
     })
+}
+
+fn current_year() -> i32 {
+    let secs = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map_or(0, |d| d.as_secs());
+    1970 + (secs / 31_556_952) as i32
 }
 
 /// Escapes text and turns `backticked` spans into `<code>` elements.

@@ -2,7 +2,8 @@ use serde::Deserialize;
 
 use super::socrata::{self, quote};
 use crate::{
-    Caveat, Client, DatasetMeta, Error, Flag, Measure, Observation, Period, Query, Result, Source,
+    Caveat, Client, DatasetMeta, Error, Flag, Geography, Measure, Observation, Period, Query,
+    Result, Source,
 };
 
 pub struct CdcVsrrOverdose;
@@ -30,6 +31,7 @@ const INDICATORS: &[(&str, &str)] = &[
     ("all_deaths", "Number of Deaths"),
 ];
 
+#[rustfmt::skip]
 static META: DatasetMeta = DatasetMeta {
     id: ID,
     title: "Provisional Drug Overdose Death Counts",
@@ -39,61 +41,19 @@ static META: DatasetMeta = DatasetMeta {
     source_url: "https://www.cdc.gov/nchs/nvss/vsrr/drug-overdose-data.htm",
     update_cadence: "Monthly",
     topics: &["substance use", "mortality", "opioids"],
+    geographies: &[Geography::Nation, Geography::State],
+    period_label: "12 months ending",
+    series_note: "Rolling 12-month total, using CDC's predicted counts where available.",
     measures: &[
-        Measure {
-            id: "overdose_deaths",
-            label: "All drug overdose deaths",
-            code: None,
-            unit: "deaths",
-        },
-        Measure {
-            id: "opioids",
-            label: "Opioids",
-            code: Some("T40.0-T40.4, T40.6"),
-            unit: "deaths",
-        },
-        Measure {
-            id: "synthetic_opioids",
-            label: "Synthetic opioids (mainly fentanyl), excl. methadone",
-            code: Some("T40.4"),
-            unit: "deaths",
-        },
-        Measure {
-            id: "heroin",
-            label: "Heroin",
-            code: Some("T40.1"),
-            unit: "deaths",
-        },
-        Measure {
-            id: "natural_semisynthetic_opioids",
-            label: "Natural & semi-synthetic opioids (e.g. oxycodone)",
-            code: Some("T40.2"),
-            unit: "deaths",
-        },
-        Measure {
-            id: "methadone",
-            label: "Methadone",
-            code: Some("T40.3"),
-            unit: "deaths",
-        },
-        Measure {
-            id: "psychostimulants",
-            label: "Psychostimulants (mainly methamphetamine)",
-            code: Some("T43.6"),
-            unit: "deaths",
-        },
-        Measure {
-            id: "cocaine",
-            label: "Cocaine",
-            code: Some("T40.5"),
-            unit: "deaths",
-        },
-        Measure {
-            id: "all_deaths",
-            label: "All deaths, any cause",
-            code: None,
-            unit: "deaths",
-        },
+        Measure { id: "overdose_deaths", label: "All drug overdose deaths", code: None, unit: "deaths" },
+        Measure { id: "opioids", label: "Opioids", code: Some("T40.0-T40.4, T40.6"), unit: "deaths" },
+        Measure { id: "synthetic_opioids", label: "Synthetic opioids (mainly fentanyl), excl. methadone", code: Some("T40.4"), unit: "deaths" },
+        Measure { id: "heroin", label: "Heroin", code: Some("T40.1"), unit: "deaths" },
+        Measure { id: "natural_semisynthetic_opioids", label: "Natural & semi-synthetic opioids (e.g. oxycodone)", code: Some("T40.2"), unit: "deaths" },
+        Measure { id: "methadone", label: "Methadone", code: Some("T40.3"), unit: "deaths" },
+        Measure { id: "psychostimulants", label: "Psychostimulants (mainly methamphetamine)", code: Some("T43.6"), unit: "deaths" },
+        Measure { id: "cocaine", label: "Cocaine", code: Some("T40.5"), unit: "deaths" },
+        Measure { id: "all_deaths", label: "All deaths, any cause", code: None, unit: "deaths" },
     ],
     caveats: &[
         Caveat {
@@ -122,6 +82,7 @@ static META: DatasetMeta = DatasetMeta {
 #[derive(Deserialize)]
 struct Row {
     state: String,
+    state_name: Option<String>,
     year: String,
     month: String,
     indicator: String,
@@ -192,12 +153,12 @@ fn normalize(row: Row) -> Option<Observation> {
         dataset: ID.into(),
         measure: measure.into(),
         geo: row.state,
-        period: Period {
-            year,
-            month: Some(month),
-        },
+        geo_name: row.state_name,
+        period: Period::month(year, month),
         value,
         adjusted_value: row.predicted_value.as_deref().and_then(|v| v.parse().ok()),
+        ci_low: None,
+        ci_high: None,
         flags,
         note: row.footnote,
     })
@@ -228,6 +189,7 @@ mod tests {
     fn row(data_value: Option<&str>, symbol: Option<&str>) -> Row {
         Row {
             state: "AK".into(),
+            state_name: Some("Alaska".into()),
             year: "2015".into(),
             month: "March".into(),
             indicator: "Cocaine (T40.5)".into(),

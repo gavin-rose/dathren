@@ -12,13 +12,18 @@ const W = 720, H = 280, LEFT = 64, RIGHT = 16, TOP = 16, BOTTOM = 40, MAX_TICKS 
 const SVG_NS = "http://www.w3.org/2000/svg";
 
 const thousands = (v) => Math.round(v).toLocaleString("en-US");
+const formatValue = (v, unit) => (unit === "deaths" ? thousands(v) : v.toFixed(1));
 const compact = (v) => {
   const trim = (n) => String(Math.round(n * 10) / 10);
   if (v >= 1e6) return `${trim(v / 1e6)}M`;
   if (v >= 1e3) return `${trim(v / 1e3)}k`;
   return trim(v);
 };
-const periodLabel = (p) => (p.month ? `${p.year}-${String(p.month).padStart(2, "0")}` : `${p.year}`);
+const periodLabel = (p) => {
+  if (p.month) return `${p.year}-${String(p.month).padStart(2, "0")}`;
+  if (p.quarter) return `${p.year}-Q${p.quarter}`;
+  return `${p.year}`;
+};
 const best = (o) => o.adjusted_value ?? o.value;
 
 function niceScale(max) {
@@ -38,7 +43,7 @@ function el(name, attrs, text) {
   return node;
 }
 
-function renderChart(rows) {
+function renderChart(rows, unit, label) {
   chartWrap.replaceChildren();
   delete chartWrap.dataset.points;
   if (rows.length < 2) return;
@@ -56,16 +61,16 @@ function renderChart(rows) {
     svg.append(el("text", { class: t % 2 ? "tick minor" : "tick", x: LEFT - 8, y: y + 4, "text-anchor": "end" }, compact(step * t)));
   }
 
-  const januaries = rows.map((r, i) => (r.label.endsWith("-01") ? i : -1)).filter((i) => i >= 0);
-  const every = Math.max(1, Math.ceil(januaries.length / 8));
-  januaries.filter((_, n) => n % every === 0).forEach((i) => {
+  const yearStarts = rows.map((r, i) => (i === 0 || r.label.slice(0, 4) !== rows[i - 1].label.slice(0, 4) ? i : -1)).filter((i) => i >= 0);
+  const every = Math.max(1, Math.ceil(yearStarts.length / 8));
+  yearStarts.filter((_, n) => n % every === 0).forEach((i) => {
     svg.append(el("text", { class: "tick", x: xAt(i), y: H - 10, "text-anchor": "middle" }, rows[i].label.slice(0, 4)));
   });
 
   svg.append(el("path", { class: "series", d: rows.map((r, i) => `${i ? "L" : "M"}${xAt(i).toFixed(1)},${yAt(r.v).toFixed(1)}`).join("") }));
   const last = rows.length - 1;
   svg.append(el("circle", { class: "marker", cx: xAt(last), cy: yAt(rows[last].v), r: 4 }));
-  svg.append(el("text", { class: "direct-label", x: xAt(last), y: yAt(rows[last].v) - 10, "text-anchor": "end" }, thousands(rows[last].v)));
+  svg.append(el("text", { class: "direct-label", x: xAt(last), y: yAt(rows[last].v) - 10, "text-anchor": "end" }, formatValue(rows[last].v, unit)));
 
   const hover = el("g", { class: "hover", hidden: "" });
   hover.append(el("line", { class: "crosshair", y1: TOP, y2: H - BOTTOM }), el("circle", { class: "marker", r: 4 }));
@@ -76,7 +81,8 @@ function renderChart(rows) {
   tip.setAttribute("role", "status");
   tip.hidden = true;
   chartWrap.append(svg, tip);
-  chartWrap.dataset.points = JSON.stringify(rows.map((r, i) => ({ x: xAt(i), y: yAt(r.v), period: r.label, value: thousands(r.v) })));
+  chartWrap.dataset.periodLabel = label;
+  chartWrap.dataset.points = JSON.stringify(rows.map((r, i) => ({ x: xAt(i), y: yAt(r.v), period: r.label, value: formatValue(r.v, unit) })));
   attachHover(chartWrap);
 }
 
@@ -115,7 +121,7 @@ async function update() {
   const rows = selection.filter((o) => best(o) != null).map((o) => ({ label: periodLabel(o.period), v: best(o) }));
 
   title.textContent = `${measure.label}, United States`;
-  renderChart(rows);
+  renderChart(rows, measure.unit, meta.period_label);
   const suppressed = selection.length - rows.length;
   status.textContent = `${rows.length} periods since ${since}` + (suppressed ? `, ${suppressed} suppressed` : "") + `. ${meta.publisher}.`;
   command.textContent = `dathren fetch ${meta.id} --geo ${form.geo.value} --measure ${measure.id} --since ${since}`;
@@ -123,9 +129,9 @@ async function update() {
 
 function toCsv(rows) {
   const quote = (s) => (/[",\n]/.test(s) ? `"${s.replaceAll('"', '""')}"` : s);
-  const lines = [["dataset", "measure", "geo", "period", "value", "adjusted_value", "flags"].join(",")];
+  const lines = [["dataset", "measure", "geo", "geo_name", "period", "value", "adjusted_value", "ci_low", "ci_high", "flags"].join(",")];
   for (const o of rows) {
-    lines.push([o.dataset, o.measure, o.geo, periodLabel(o.period), o.value ?? "", o.adjusted_value ?? "", o.flags.join(";")].map((v) => quote(String(v))).join(","));
+    lines.push([o.dataset, o.measure, o.geo, o.geo_name ?? "", periodLabel(o.period), o.value ?? "", o.adjusted_value ?? "", o.ci_low ?? "", o.ci_high ?? "", o.flags.join(";")].map((v) => quote(String(v))).join(","));
   }
   return lines.join("\n") + "\n";
 }
