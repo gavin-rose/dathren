@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Request a dataset
+    url: https://github.com/gavin-rose/dathren/discussions/categories/dataset-requests
+    about: Suggest a dataset or code system to add.
+  - name: Ask a question
+    url: https://github.com/gavin-rose/dathren/discussions/categories/general
+    about: Questions about dathren or the data.

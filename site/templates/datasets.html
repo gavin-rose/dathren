@@ -4,7 +4,8 @@
 {% block content %}
 <section class="intro">
   <h4>Datasets</h4>
-  <h5>Each dataset page has a chart, the caveats to know before using it, and downloads.</h5>
+  <h5>Each dataset page has a chart, the caveats to know before using it, and downloads.
+    See <a href="{{ site.base_url }}changes/">what changed recently</a>.</h5>
 </section>
 
 {% for page in pages %}
@@ -20,6 +21,7 @@
     <p class="stat"><strong>{{ page.ranking.reported_label }}</strong>
       {{ "counties" if page.ranking.level == "county" else "states and territories" }} reported, {{ page.meta.period_label|lower }} {{ page.ranking.period }}</p>
     {% endif %}
+    {% if page.recent_changes %}<p class="card-updated">Changed {{ page.recent_changes[0].date }}</p>{% endif %}
   </div>
   <span class="material-symbols-outlined card-link">open_in_new</span>
 </a>

@@ -134,13 +134,16 @@ pub struct Observation {
     pub measure: String,
     pub geo: String,
     /// Readable name for `geo` when the code alone isn't, e.g. a county FIPS code.
+    #[serde(default)]
     pub geo_name: Option<String>,
     pub period: Period,
     pub value: Option<f64>,
     /// Upstream's own correction for known reporting gaps, when it publishes one.
     pub adjusted_value: Option<f64>,
     /// 95% confidence interval, for survey and model-based estimates.
+    #[serde(default)]
     pub ci_low: Option<f64>,
+    #[serde(default)]
     pub ci_high: Option<f64>,
     pub flags: Vec<Flag>,
     pub note: Option<String>,

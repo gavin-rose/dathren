@@ -73,6 +73,22 @@
 </section>
 {% endif %}
 
+{% if page.recent_changes %}
+<section class="card wide">
+  <div class="card-header">Recent changes</div>
+  <ul class="changes compact">
+    {% for c in page.recent_changes %}
+    <li class="change">
+      <span class="pill change-{{ c.kind }}">{{ {"new_data": "New data", "revised": "Revised", "removed": "Removed"}[c.kind] }}</span>
+      <div><span class="muted">{{ c.date }}</span><p>{{ c.summary }}</p>
+        {% if c.examples %}<ul class="change-examples">{% for e in c.examples %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}</div>
+    </li>
+    {% endfor %}
+  </ul>
+  <p class="muted centered note"><a href="{{ site.base_url }}changes/">All changes</a></p>
+</section>
+{% endif %}
+
 <section class="card wide">
   <div class="card-header"><span class="material-symbols-outlined">warning</span> Before you use this data</div>
   <ul class="caveats">

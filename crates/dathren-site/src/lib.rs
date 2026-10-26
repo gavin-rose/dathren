@@ -1,3 +1,4 @@
+mod changes;
 mod chart;
 mod discussions;
 
@@ -5,12 +6,14 @@ use std::collections::BTreeMap;
 use std::fs;
 use std::path::Path;
 
+use changes::Change;
 use discussions::Discussion;
 
 use anyhow::{Context, Result};
 use dathren::geo::{self, State};
 use dathren::{Client, DatasetMeta, Geography, Observation, Query, Source, export, registry};
 use minijinja::{Environment, Value, context, path_loader};
+use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 
 #[derive(Deserialize, Serialize)]
@@ -61,6 +64,7 @@ struct DatasetPage<'a> {
     headline: Option<Headline>,
     chart: Option<chart::LineChart>,
     ranking: Option<Ranking>,
+    recent_changes: Vec<Change>,
 }
 
 #[derive(Serialize)]
@@ -108,12 +112,46 @@ pub fn build(src: &Path, out: &Path, client: &Client) -> Result<()> {
     fs::create_dir_all(out)?;
     copy_dir(&src.join("static"), out)?;
 
+    let previous = Previous::new(config.site_url.as_deref())?;
     let mut pages = Vec::new();
+    let mut new_changes = Vec::new();
     for source in registry::all() {
-        let page = dataset_page(*source, client, &out.join("data").join(source.meta().id))
-            .with_context(|| format!("building {}", source.meta().id))?;
+        let (page, found) = dataset_page(
+            *source,
+            client,
+            &out.join("data").join(source.meta().id),
+            &previous,
+        )
+        .with_context(|| format!("building {}", source.meta().id))?;
         pages.push(page);
+        new_changes.extend(found);
     }
+
+    let mut history: Vec<Change> = previous.json("changes.json")?.unwrap_or_default();
+    history.splice(0..0, new_changes);
+    history.truncate(changes::MAX_CHANGES);
+    fs::write(
+        out.join("changes.json"),
+        serde_json::to_vec_pretty(&history)?,
+    )?;
+    for page in &mut pages {
+        page.recent_changes = history
+            .iter()
+            .filter(|c| c.dataset == page.meta.id)
+            .take(3)
+            .cloned()
+            .collect();
+    }
+    let dir = out.join("changes");
+    fs::create_dir_all(&dir)?;
+    let html = env
+        .get_template("changes.html")?
+        .render(context! { site => &config, changes => &history })?;
+    fs::write(dir.join("index.html"), html)?;
+    let feed = env
+        .get_template("changes.xml")?
+        .render(context! { site => &config, changes => &history[..history.len().min(50)], updated => previous.date })?;
+    fs::write(out.join("changes.xml"), feed)?;
 
     for page in &pages {
         let dir = out.join("datasets").join(page.meta.id);
@@ -189,11 +227,66 @@ pub fn build(src: &Path, out: &Path, client: &Client) -> Result<()> {
     Ok(())
 }
 
+/// The currently deployed site, used to find what changed since the last build.
+struct Previous {
+    http: reqwest::blocking::Client,
+    base: Option<String>,
+    date: String,
+}
+
+impl Previous {
+    fn new(site_url: Option<&str>) -> Result<Self> {
+        let secs = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)?
+            .as_secs();
+        Ok(Self {
+            http: reqwest::blocking::Client::builder()
+                .user_agent("dathren-site")
+                .timeout(std::time::Duration::from_secs(60))
+                .build()?,
+            base: site_url.map(|u| u.trim_end_matches('/').to_string()),
+            date: changes::date_from_unix(secs),
+        })
+    }
+
+    /// `None` when the file isn't deployed yet. Network errors fail the build so a
+    /// hiccup can't erase the change history.
+    fn json<T: DeserializeOwned>(&self, path: &str) -> Result<Option<T>> {
+        let Some(base) = &self.base else {
+            return Ok(None);
+        };
+        let url = format!("{base}/{path}");
+        let response = self
+            .http
+            .get(&url)
+            .send()
+            .with_context(|| format!("fetching {url}"))?;
+        if response.status() == reqwest::StatusCode::NOT_FOUND {
+            return Ok(None);
+        }
+        let body = response.error_for_status()?.text()?;
+        match serde_json::from_str(&body) {
+            Ok(value) => Ok(Some(value)),
+            Err(e) => {
+                eprintln!("warning: ignoring unreadable {url}: {e}");
+                Ok(None)
+            }
+        }
+    }
+
+    fn data(&self, dataset: &str, file: &str) -> Result<Vec<Observation>> {
+        Ok(self
+            .json(&format!("data/{dataset}/{file}.json"))?
+            .unwrap_or_default())
+    }
+}
+
 fn dataset_page<'a>(
     source: &'a dyn Source,
     client: &Client,
     data_dir: &Path,
-) -> Result<DatasetPage<'a>> {
+    previous: &Previous,
+) -> Result<(DatasetPage<'a>, Vec<Change>)> {
     let meta = source.meta();
     let primary = meta.measures.first().context("dataset has no measures")?;
     fs::create_dir_all(data_dir)?;
@@ -229,11 +322,23 @@ fn dataset_page<'a>(
             }
         }
         states.sort_by_key(|s| s.name);
+
+        let mut old = previous.data(meta.id, "us")?;
+        for state in &states {
+            old.extend(previous.data(meta.id, &format!("state/{}", state.abbr))?);
+        }
+        let current: Vec<Observation> = observations
+            .iter()
+            .chain(by_geo.values().flatten())
+            .cloned()
+            .collect();
+        let found = changes::diff(meta, &previous.date, &old, &current);
+
         let series: Vec<&Observation> = observations
             .iter()
             .filter(|o| o.measure == primary.id)
             .collect();
-        return Ok(DatasetPage {
+        let page = DatasetPage {
             meta,
             unit: primary.unit,
             download: "us",
@@ -241,7 +346,9 @@ fn dataset_page<'a>(
             headline: headline(primary.label, primary.unit, &series),
             chart: chart::LineChart::new(&series, primary.unit),
             ranking: None,
-        });
+            recent_changes: Vec::new(),
+        };
+        return Ok((page, found));
     }
 
     let recent = Query {
@@ -260,6 +367,12 @@ fn dataset_page<'a>(
     let newest = observations.iter().map(|o| o.period).max();
     observations.retain(|o| Some(o.period) == newest);
     write("latest", &observations)?;
+    let found = changes::diff(
+        meta,
+        &previous.date,
+        &previous.data(meta.id, "latest")?,
+        &observations,
+    );
 
     let county = meta.has(Geography::County);
     let mut states: Vec<&'static State> = geo::STATES
@@ -300,7 +413,7 @@ fn dataset_page<'a>(
             }),
         })
         .collect();
-    Ok(DatasetPage {
+    let page = DatasetPage {
         meta,
         unit: primary.unit,
         download: "latest",
@@ -315,7 +428,9 @@ fn dataset_page<'a>(
             reported_label: chart::thousands(reported.len() as f64),
             rows,
         }),
-    })
+        recent_changes: Vec::new(),
+    };
+    Ok((page, found))
 }
 
 fn headline(label: &'static str, unit: &str, series: &[&Observation]) -> Option<Headline> {

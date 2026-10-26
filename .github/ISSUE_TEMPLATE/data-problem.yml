@@ -1,0 +1,28 @@
+name: Data problem
+description: A value, label, or caveat in dathren looks wrong
+labels: ["data"]
+body:
+  - type: input
+    id: dataset
+    attributes:
+      label: Dataset id
+      placeholder: cdc-vsrr-overdose
+    validations:
+      required: true
+  - type: input
+    id: where
+    attributes:
+      label: Measure, geography, and period
+      placeholder: synthetic_opioids, WV, 2026-03
+  - type: textarea
+    id: problem
+    attributes:
+      label: What looks wrong
+      description: What dathren shows, and what you expected.
+    validations:
+      required: true
+  - type: input
+    id: source
+    attributes:
+      label: Link to the publisher's value
+      description: Where the original source shows something different, if you have it.

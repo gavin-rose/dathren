@@ -1,0 +1,23 @@
+name: Bug
+description: Something in the site, CLI, or packages doesn't work
+labels: ["bug"]
+body:
+  - type: dropdown
+    id: where
+    attributes:
+      label: Where
+      options: [Website, CLI, Python package, Node package, Rust crate]
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: For packages, e.g. 0.1.1. For the website, the page URL.
+  - type: textarea
+    id: steps
+    attributes:
+      label: What happened
+      description: Steps to reproduce, what you expected, and any error message.
+    validations:
+      required: true

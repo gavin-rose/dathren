@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+  <title>{{ site.title }}: dataset changes</title>
+  <subtitle>New releases and revisions across dathren's public health datasets.</subtitle>
+  <link href="{{ site.site_url }}/changes/"/>
+  <link rel="self" href="{{ site.site_url }}/changes.xml"/>
+  <id>{{ site.site_url }}/changes/</id>
+  <updated>{{ (changes[0].date if changes else updated) }}T00:00:00Z</updated>
+  {% for c in changes %}
+  <entry>
+    <title>{{ c.title }}: {{ {"new_data": "new data", "revised": "revisions", "removed": "data removed"}[c.kind] }}</title>
+    <link href="{{ site.site_url }}/datasets/{{ c.dataset }}/"/>
+    <id>{{ site.site_url }}/changes/#{{ c.date }}-{{ c.dataset }}-{{ c.kind }}</id>
+    <updated>{{ c.date }}T00:00:00Z</updated>
+    <summary>{{ c.summary }}{% for e in c.examples %} {{ e }}.{% endfor %}</summary>
+  </entry>
+  {% endfor %}
+</feed>

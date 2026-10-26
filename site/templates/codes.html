@@ -9,8 +9,13 @@
 
 <div class="search wide">
   <span class="material-symbols-outlined">search</span>
-  <input type="search" placeholder="Search codes and definitions (coming soon)" aria-label="Search codes" disabled>
+  <input type="search" id="code-search" placeholder="Search a code or term, like F32, fentanyl, or naloxone" aria-label="Search codes" autocomplete="off">
 </div>
+<section class="card wide search-results" id="search-results" aria-live="polite" hidden></section>
+<script type="application/json" id="local-codes">[
+  {%- for page in pages %}{% for m in page.meta.measures if m.code %}{"code": {{ m.code|tojson }}, "system": "ICD-10 (WHO)", "label": {{ m.label|tojson }}, "href": {{ (site.base_url ~ "datasets/" ~ page.meta.id ~ "/")|tojson }}},{% endfor %}{% endfor %}
+  {%- for s in states %}{"code": {{ s.fips|tojson }}, "system": "FIPS", "label": {{ (s.name ~ " (" ~ s.abbr ~ ")")|tojson }}, "href": null}{% if not loop.last %},{% endif %}{% endfor %}
+]</script>
 
 <section class="card wide">
   <div class="card-header">Codes used by our datasets</div>
@@ -57,9 +62,11 @@
         ("FIPS", "States and counties", "Census Bureau"),
         ("LOINC", "Lab tests", "Regenstrief Institute"),
       ] %}
-      <tr><td class="nowrap">{{ name }}</td><td>{{ covers }}</td><td class="nowrap">{{ publisher }}</td><td><span class="pill">{{ "States added" if name == "FIPS" else "Planned" }}</span></td></tr>
+      {% set status = {"ICD-10-CM": "Searchable", "HCPCS Level II": "Searchable", "FIPS": "States added", "ICD-10 (WHO)": "Dataset codes"}[name] or "Planned" %}
+      <tr><td class="nowrap">{{ name }}</td><td>{{ covers }}</td><td class="nowrap">{{ publisher }}</td><td><span class="pill{{ " pill-on" if status != "Planned" else "" }}">{{ status }}</span></td></tr>
       {% endfor %}
     </tbody>
   </table>
 </section>
 {% endblock %}
+{% block scripts %}<script src="{{ site.base_url }}codes.js" defer></script>{% endblock %}

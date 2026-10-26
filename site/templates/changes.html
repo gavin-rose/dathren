@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% set active = "datasets" %}
+{% block title %}Changes · {{ site.title }}{% endblock %}
+{% block description %}New releases and revisions across dathren's datasets.{% endblock %}
+{% block content %}
+<section class="intro">
+  <h4>Changes</h4>
+  <h5>What changed in each dataset since the last daily build: new releases, revised values, and data that stopped being published.</h5>
+  <a class="button cta" href="{{ site.base_url }}changes.xml"><span>Subscribe</span><span class="material-symbols-outlined">rss_feed</span></a>
+</section>
+
+<section class="card wide">
+  {% if changes %}
+  <ul class="changes">
+    {% for c in changes %}
+    {% if loop.first or c.date != loop.previtem.date %}<li class="change-date">{{ c.date }}</li>{% endif %}
+    <li class="change">
+      <span class="pill change-{{ c.kind }}">{{ {"new_data": "New data", "revised": "Revised", "removed": "Removed"}[c.kind] }}</span>
+      <div>
+        <a href="{{ site.base_url }}datasets/{{ c.dataset }}/">{{ c.title }}</a>
+        <p>{{ c.summary }}</p>
+        {% if c.examples %}<ul class="change-examples">{% for e in c.examples %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}
+      </div>
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <p class="muted centered">No changes recorded yet. dathren compares each daily build with the one before it, so changes show up here from the next upstream update on.</p>
+  {% endif %}
+</section>
+{% endblock %}

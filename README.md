@@ -67,7 +67,9 @@ python3 -m http.server -d dist      # preview at http://localhost:8000
 ```
 
 The `Site` workflow builds and deploys to GitHub Pages on every push to `main`
-and once a day, so the site picks up new upstream data.
+and once a day, so the site picks up new upstream data. Each build compares its
+data with the deployed site and records new releases and revisions on the
+Changes page and in an Atom feed at `/changes.xml`.
 
 To set it up:
 
@@ -77,11 +79,11 @@ To set it up:
 3. For discussion threads, enable **Discussions** on the repo, install
    [giscus](https://giscus.app), and fill in `[giscus]` in `site/config.toml`.
 
-## Adding a dataset
+## Contributing
 
-1. Add a module under `crates/dathren-core/src/sources/` that implements `Source`.
-2. Write the dataset's `caveats`. These are as important as the code.
-3. Register it in `registry.rs`.
+New datasets, better caveats, and data bug reports are all welcome. See
+[CONTRIBUTING.md](CONTRIBUTING.md) for setup and a step-by-step guide to
+adding a dataset.
 
 ## Releasing
 
