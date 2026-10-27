@@ -124,3 +124,60 @@ if (filter) {
     filter.dispatchEvent(new Event("change"));
   }
 }
+
+const mapCard = document.getElementById("map-card");
+if (mapCard) {
+  (async () => {
+    const note = document.getElementById("map-note");
+    const level = mapCard.dataset.level;
+    const stateNames = Object.fromEntries(JSON.parse(mapCard.dataset.states).map((s) => [s.fips, s]));
+    let map, measure;
+    try {
+      const data = await load("map");
+      measure = data.measures[page.measure];
+      map = await createMap(mapCard, { base: page.base, level, mode: mapCard.dataset.mode, unit: page.unit, periodLabel: page.periodLabel, stateNames, names: data.names });
+    } catch (err) {
+      note.textContent = `Couldn't load the map: ${err.message}`;
+      return;
+    }
+    map.render(measure);
+
+    const tableBody = document.getElementById("map-table");
+    const tableNote = document.getElementById("map-table-note");
+    const showTable = (stateFips) => {
+      let rows = map.table(measure, stateFips);
+      const total = rows.length;
+      if (level === "county" && !stateFips) rows = rows.slice(0, 50);
+      const hasCi = fillMapTable(tableBody, rows, page.unit);
+      mapCard.querySelector(".map-ci").hidden = !hasCi;
+      tableNote.textContent = rows.length < total ? `Highest ${rows.length} of ${total.toLocaleString("en-US")} counties. Pick a state above to see all of its counties.` : "";
+    };
+    showTable(null);
+
+    const hint = picker ? " Click a state to chart it." : level === "county" && filter ? " Pick a state above to zoom in." : "";
+    const older = measure.note ? ` Older data where newer isn't available: ${measure.note}.` : "";
+    const undrawn = map.undrawn(measure);
+    const missing = undrawn.length
+      ? ` ${undrawn.length} ${undrawn.length === 1 ? "place isn't" : "places aren't"} drawn because ${undrawn.length === 1 ? "its" : "their"} boundaries changed after this map was made (${undrawn.slice(0, 3).join("; ")}${undrawn.length > 3 ? "; and more" : ""}). They're in the table.`
+      : "";
+    note.textContent = `${page.periodLabel} ${measure.period}.${hint}${older}${missing}`;
+
+    mapCard.addEventListener("mapselect", (event) => {
+      const abbr = event.detail.abbr;
+      if (!picker || !abbr || ![...picker.options].some((o) => o.value === abbr)) return;
+      picker.value = abbr;
+      picker.dispatchEvent(new Event("change"));
+      document.getElementById("chart-title").scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+
+    if (filter) {
+      const zoom = () => {
+        const fips = Object.values(stateNames).find((s) => s.abbr === filter.value)?.fips ?? null;
+        map.zoomTo(fips);
+        showTable(fips);
+      };
+      filter.addEventListener("change", zoom);
+      if (filter.value) zoom();
+    }
+  })();
+}

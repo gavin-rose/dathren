@@ -20,8 +20,18 @@
 
 <section class="card wide">
   <div class="card-header" id="result-title">Loading</div>
+  <div class="tab-bar view-bar">
+    <div role="tablist" aria-label="View">
+      <button type="button" role="tab" data-view="chart" aria-selected="true">Chart</button>
+      <button type="button" role="tab" data-view="map" aria-selected="false" tabindex="-1">Map</button>
+    </div>
+  </div>
   <div class="legend" id="result-legend"></div>
   <div class="chart-wrap" id="result-chart"></div>
+  <div id="result-map" hidden>
+    <div class="map-canvas"></div>
+    <div class="legend map-legend"></div>
+  </div>
   <p class="muted" id="result-status"></p>
   <div class="buttons">
     <button class="button" type="button" id="download"><span>Download CSV</span><span class="material-symbols-outlined">download</span></button>
@@ -34,10 +44,8 @@
   <div class="card-header">Coming soon</div>
   <ul class="roadmap">
     <li><span class="material-symbols-outlined">stacked_line_chart</span>Compare several measures on one chart</li>
-    <li><span class="material-symbols-outlined">map</span>State and county maps</li>
     <li><span class="material-symbols-outlined">location_city</span>County-level charts</li>
     <li><span class="material-symbols-outlined">join</span>Combine datasets that share a geography</li>
-    <li><span class="material-symbols-outlined">bookmark</span>Shareable links to a saved query</li>
   </ul>
 </section>
 
@@ -45,5 +53,6 @@
 {% endblock %}
 {% block scripts %}
 <script src="{{ site.base_url }}chart.js" defer></script>
-<script src="{{ site.base_url }}explore.js" data-base="{{ site.base_url }}" defer></script>
+<script src="{{ site.base_url }}map.js" defer></script>
+<script src="{{ site.base_url }}explore.js" data-base="{{ site.base_url }}" data-states='{{ states|tojson }}' defer></script>
 {% endblock %}

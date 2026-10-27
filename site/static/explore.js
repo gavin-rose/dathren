@@ -1,4 +1,8 @@
 const base = document.currentScript.dataset.base;
+const stateNames = Object.fromEntries(JSON.parse(document.currentScript.dataset.states).map((s) => [s.fips, s]));
+const mapRoot = document.getElementById("result-map");
+const viewTabs = [...document.querySelectorAll(".view-bar [role=tab]")];
+let view = new URLSearchParams(location.search).get("view") === "map" ? "map" : "chart";
 const catalog = JSON.parse(document.getElementById("catalog").textContent);
 const form = document.getElementById("query");
 const title = document.getElementById("result-title");
@@ -48,6 +52,31 @@ async function update() {
   const series = [{ name: geoName, rows: toRows(selection) }];
   if (national) series.push({ name: "US", rows: toRows(pick(national)), reference: true });
 
+  for (const tab of viewTabs) {
+    tab.setAttribute("aria-selected", String(tab.dataset.view === view));
+    tab.tabIndex = tab.dataset.view === view ? 0 : -1;
+  }
+  chartWrap.hidden = legend.hidden = view === "map";
+  mapRoot.hidden = view !== "map";
+  command.textContent = `dathren fetch ${meta.id} --geo ${geo} --measure ${measure.id} --since ${since}`;
+  const url = new URL(location.href);
+  url.search = new URLSearchParams({ dataset: meta.id, measure: measure.id, geo, since, compare: form.compare.checked ? "1" : "0", ...(view === "map" && { view }) });
+  history.replaceState(null, "", url);
+
+  if (view === "map") {
+    title.textContent = `${measure.label}, by state`;
+    try {
+      const data = await loadJson(`${base}data/${meta.id}/map.json`);
+      const latest = data.measures[measure.id];
+      const map = await createMap(mapRoot, { base, level: "state", mode: measure.unit === "deaths" ? "bubbles" : "choropleth", unit: measure.unit, periodLabel: meta.period_label, stateNames });
+      map.render(latest);
+      status.textContent = `${meta.period_label} ${latest.period}. Click a state to chart it.` + (latest.note ? ` Older data where newer isn't available: ${latest.note}.` : "");
+    } catch (err) {
+      status.textContent = `Couldn't load the map: ${err.message}`;
+    }
+    return;
+  }
+
   title.textContent = `${measure.label}, ${geoName}`;
   renderLegend(legend, series);
   const drawn = renderLineChart(chartWrap, series, { unit: measure.unit, periodLabel: meta.period_label });
@@ -56,11 +85,6 @@ async function update() {
   status.textContent = drawn
     ? `${shown} periods since ${since}` + (suppressed ? `, ${suppressed} suppressed` : "") + `. ${meta.publisher}.`
     : `Not enough reported data to chart ${measure.label.toLowerCase()} for ${geoName}` + (suppressed ? ` (${suppressed} periods suppressed).` : ".");
-  command.textContent = `dathren fetch ${meta.id} --geo ${geo} --measure ${measure.id} --since ${since}`;
-
-  const url = new URL(location.href);
-  url.search = new URLSearchParams({ dataset: meta.id, measure: measure.id, geo, since, compare: form.compare.checked ? "1" : "0" });
-  history.replaceState(null, "", url);
 }
 
 function toCsv(rows) {
@@ -99,4 +123,17 @@ fillSelect(form.geo, [["US", "United States"], ...initial.states.map((s) => [s.a
 if (params.has("since")) form.since.replaceChildren(new Option(params.get("since"), params.get("since")));
 form.compare.checked = params.get("compare") !== "0";
 form.addEventListener("change", update);
+for (const tab of viewTabs) {
+  tab.addEventListener("click", () => {
+    view = tab.dataset.view;
+    update();
+  });
+}
+mapRoot.addEventListener("mapselect", (event) => {
+  const abbr = event.detail.abbr;
+  if (![...form.geo.options].some((o) => o.value === abbr)) return;
+  form.geo.value = abbr;
+  view = "chart";
+  update();
+});
 update();

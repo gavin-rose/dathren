@@ -2,7 +2,7 @@ mod changes;
 mod chart;
 mod discussions;
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
 use std::path::Path;
 
@@ -11,7 +11,9 @@ use discussions::Discussion;
 
 use anyhow::{Context, Result};
 use dathren::geo::{self, State};
-use dathren::{Client, DatasetMeta, Geography, Observation, Query, Source, export, registry};
+use dathren::{
+    Client, DatasetMeta, Flag, Geography, Observation, Period, Query, Source, export, registry,
+};
 use minijinja::{Environment, Value, context, path_loader};
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
@@ -64,8 +66,34 @@ struct DatasetPage<'a> {
     headline: Option<Headline>,
     chart: Option<chart::LineChart>,
     ranking: Option<Ranking>,
+    map: Option<MapInfo>,
     recent_changes: Vec<Change>,
 }
+
+#[derive(Serialize)]
+struct MapInfo {
+    level: &'static str,
+    /// Counts are drawn as sized circles; shading places by raw counts would mostly show population.
+    mode: &'static str,
+}
+
+/// The newest value of each measure for every mapped place, keyed by FIPS code.
+#[derive(Serialize)]
+struct MapData<'a> {
+    level: &'static str,
+    names: BTreeMap<String, String>,
+    measures: BTreeMap<&'a str, MapMeasure>,
+}
+
+#[derive(Serialize)]
+struct MapMeasure {
+    period: String,
+    note: Option<String>,
+    values: BTreeMap<String, MapValue>,
+}
+
+/// Value, CI low, CI high, and the period when it's older than the measure's newest.
+type MapValue = (Option<f64>, Option<f64>, Option<f64>, Option<String>);
 
 #[derive(Serialize)]
 struct Headline {
@@ -81,6 +109,7 @@ struct Ranking {
     label: &'static str,
     level: &'static str,
     period: String,
+    note: Option<String>,
     reported: usize,
     reported_label: String,
     rows: Vec<RankRow>,
@@ -158,7 +187,7 @@ pub fn build(src: &Path, out: &Path, client: &Client) -> Result<()> {
         fs::create_dir_all(&dir)?;
         let html = env
             .get_template("dataset.html")?
-            .render(context! { site => &config, page => page })?;
+            .render(context! { site => &config, page => page, all_states => geo::STATES })?;
         fs::write(dir.join("index.html"), html)?;
     }
     for (template, dir) in [
@@ -334,6 +363,7 @@ fn dataset_page<'a>(
             .collect();
         let found = changes::diff(meta, &previous.date, &old, &current);
 
+        let map = write_map(data_dir, "state", by_geo.values().flatten(), primary.unit)?;
         let series: Vec<&Observation> = observations
             .iter()
             .filter(|o| o.measure == primary.id)
@@ -346,6 +376,7 @@ fn dataset_page<'a>(
             headline: headline(primary.label, primary.unit, &series),
             chart: chart::LineChart::new(&series, primary.unit),
             ranking: None,
+            map,
             recent_changes: Vec::new(),
         };
         return Ok((page, found));
@@ -364,8 +395,8 @@ fn dataset_page<'a>(
         };
         observations = source.fetch(client, &all)?;
     }
+    let observations = newest_per_place(observations);
     let newest = observations.iter().map(|o| o.period).max();
-    observations.retain(|o| Some(o.period) == newest);
     write("latest", &observations)?;
     let found = changes::diff(
         meta,
@@ -375,6 +406,16 @@ fn dataset_page<'a>(
     );
 
     let county = meta.has(Geography::County);
+    let map = if county {
+        write_map(data_dir, "county", observations.iter(), primary.unit)?
+    } else {
+        let every_measure = Query {
+            since_year: newest.map(|p| p.year - 1),
+            ..Query::default()
+        };
+        let all = source.fetch(client, &every_measure)?;
+        write_map(data_dir, "state", all.iter(), primary.unit)?
+    };
     let mut states: Vec<&'static State> = geo::STATES
         .iter()
         .filter(|s| {
@@ -424,13 +465,136 @@ fn dataset_page<'a>(
             label: primary.label,
             level: if county { "county" } else { "state" },
             period: period.to_string(),
+            note: older_periods(&observations, period),
             reported: reported.len(),
             reported_label: chart::thousands(reported.len() as f64),
             rows,
         }),
+        map,
         recent_changes: Vec::new(),
     };
     Ok((page, found))
+}
+
+/// The newest observation of each measure for each place. Publishers like PLACES mix
+/// years by state, so one cutoff period for everyone would silently drop places. A newer
+/// row with no value that was never published loses to an older value, but a suppressed
+/// one wins: falling back past a suppression would show a stale number as current.
+fn newest_per_place(observations: Vec<Observation>) -> Vec<Observation> {
+    let published = |o: &Observation| o.best().is_some() || o.flags.contains(&Flag::Suppressed);
+    let mut newest: BTreeMap<(String, String), Observation> = BTreeMap::new();
+    for o in observations {
+        let key = (o.measure.clone(), o.geo.clone());
+        let better = match newest.get(&key) {
+            None => true,
+            Some(kept) => (published(&o), o.period) > (published(kept), kept.period),
+        };
+        if better {
+            newest.insert(key, o);
+        }
+    }
+    newest.into_values().collect()
+}
+
+/// Names the states whose newest data is older than `newest`, e.g. "2022 for KY, PA".
+fn older_periods(observations: &[Observation], newest: Period) -> Option<String> {
+    let mut by_period: BTreeMap<Period, BTreeSet<&str>> = BTreeMap::new();
+    for o in observations
+        .iter()
+        .filter(|o| o.period < newest && o.geo != "US")
+    {
+        let state = match o.geo.len() {
+            5 => geo::STATES
+                .iter()
+                .find(|s| o.geo.starts_with(s.fips))
+                .map(|s| s.abbr),
+            _ => Some(o.geo.as_str()),
+        };
+        by_period.entry(o.period).or_default().extend(state);
+    }
+    let parts: Vec<String> = by_period
+        .iter()
+        .rev()
+        .map(|(period, states)| {
+            format!(
+                "{period} for {}",
+                states.iter().copied().collect::<Vec<_>>().join(", ")
+            )
+        })
+        .collect();
+    (!parts.is_empty()).then(|| parts.join("; "))
+}
+
+fn write_map<'a>(
+    data_dir: &Path,
+    level: &'static str,
+    observations: impl Iterator<Item = &'a Observation>,
+    unit: &str,
+) -> Result<Option<MapInfo>> {
+    let place = |o: &Observation| match level {
+        "county" => (o.geo.len() == 5).then(|| o.geo.clone()),
+        _ => geo::state(&o.geo).map(|s| s.fips.to_string()),
+    };
+    let latest = newest_per_place(
+        observations
+            .filter(|o| place(o).is_some())
+            .cloned()
+            .collect(),
+    );
+    let mut by_measure: BTreeMap<&str, Vec<&Observation>> = BTreeMap::new();
+    for o in &latest {
+        by_measure.entry(&o.measure).or_default().push(o);
+    }
+    let mut data = MapData {
+        level,
+        names: BTreeMap::new(),
+        measures: BTreeMap::new(),
+    };
+    if level == "county" {
+        for o in &latest {
+            if let (Some(id), Some(name)) = (place(o), &o.geo_name) {
+                data.names.insert(id, name.clone());
+            }
+        }
+    }
+    for (measure, rows) in by_measure {
+        let Some(period) = rows
+            .iter()
+            .filter(|o| o.best().is_some())
+            .map(|o| o.period)
+            .max()
+        else {
+            continue;
+        };
+        let rows: Vec<Observation> = rows.into_iter().cloned().collect();
+        let values = rows
+            .iter()
+            .filter_map(|o| {
+                let older = (o.period != period).then(|| o.period.to_string());
+                Some((place(o)?, (o.best(), o.ci_low, o.ci_high, older)))
+            })
+            .collect();
+        data.measures.insert(
+            measure,
+            MapMeasure {
+                period: period.to_string(),
+                note: older_periods(&rows, period),
+                values,
+            },
+        );
+    }
+    if data.measures.is_empty() {
+        return Ok(None);
+    }
+    fs::write(data_dir.join("map.json"), serde_json::to_vec(&data)?)?;
+    Ok(Some(MapInfo {
+        level,
+        mode: if unit == "deaths" {
+            "bubbles"
+        } else {
+            "choropleth"
+        },
+    }))
 }
 
 fn headline(label: &'static str, unit: &str, series: &[&Observation]) -> Option<Headline> {
@@ -524,6 +688,40 @@ mod tests {
             .unwrap();
         assert!(html.contains("discuss/t/7/"));
         assert!(html.contains("3 replies"));
+    }
+
+    fn obs(geo: &str, year: i32, value: Option<f64>, flags: Vec<Flag>) -> Observation {
+        Observation {
+            dataset: "test".into(),
+            measure: "m".into(),
+            geo: geo.into(),
+            geo_name: None,
+            period: Period::year(year),
+            value,
+            adjusted_value: None,
+            ci_low: None,
+            ci_high: None,
+            flags,
+            note: None,
+        }
+    }
+
+    #[test]
+    fn newest_per_place_skips_unpublished_but_keeps_suppressed() {
+        let kept = newest_per_place(vec![
+            obs("TN", 2023, Some(15.0), vec![]),
+            obs("TN", 2024, None, vec![]),
+            obs("WV", 2023, Some(20.0), vec![]),
+            obs("WV", 2024, None, vec![Flag::Suppressed]),
+            obs("CA", 2024, Some(14.0), vec![]),
+        ]);
+        let get = |geo: &str| kept.iter().find(|o| o.geo == geo).unwrap();
+        assert_eq!((get("TN").period.year, get("TN").value), (2023, Some(15.0)));
+        assert_eq!((get("WV").period.year, get("WV").value), (2024, None));
+        assert_eq!(
+            older_periods(&kept, Period::year(2024)).as_deref(),
+            Some("2023 for TN")
+        );
     }
 
     #[test]

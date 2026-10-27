@@ -92,6 +92,11 @@ static META: DatasetMeta = DatasetMeta {
                      before comparing two measures.",
         },
         Caveat {
+            title: "Kentucky and Pennsylvania are mostly missing",
+            detail: "This release has only 5 measures for their counties (screenings, dental \
+                     visits, sleep, and tooth loss), all from 2022. The rest aren't published.",
+        },
+        Caveat {
             title: "Some measures cover narrower groups",
             detail: "Health insurance covers ages 18 to 64, mammography women 50 to 74, and \
                      tooth loss ages 65 and over. The measure labels say so.",

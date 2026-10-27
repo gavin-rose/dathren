@@ -355,6 +355,26 @@ h4 .material-symbols-outlined { font-size: 26px; vertical-align: -4px; }
 .change-removed { border-color: #c9a227; color: #e0c46a; }
 .card-updated { margin: 8px 0 0 !important; font-size: 12px !important; color: var(--text-muted); }
 
+.map-canvas { position: relative; }
+.map { display: block; width: 100%; height: auto; }
+.map path, .map circle { vector-effect: non-scaling-stroke; }
+.map .place { stroke: var(--bg); stroke-width: 0.5; cursor: pointer; transition: opacity 0.2s; }
+.map .place.dim { opacity: 0.25; }
+.map .place:hover { stroke: var(--text); stroke-width: 1.5; }
+.map .place.base { fill: #4d4d4d; }
+.map .state-borders path { fill: none; stroke: var(--bg); stroke-width: 1.2; pointer-events: none; }
+.map .bubble { fill: rgb(121 169 216 / 0.55); stroke: #c3dbf2; stroke-width: 1; cursor: pointer; }
+.map .bubble:hover { fill: rgb(121 169 216 / 0.85); }
+.map .no-data-fill { fill: #4d4d4d; }
+.map .no-data-line { stroke: #6e6e6e; stroke-width: 2; }
+.map-tip { white-space: normal; max-width: 260px; }
+.map-legend { flex-wrap: wrap; margin-top: 10px; gap: 14px; }
+.swatch-box { width: 16px; height: 12px; border-radius: 3px; }
+.swatch-box.hatched { background: repeating-linear-gradient(45deg, #4d4d4d 0 3px, #6e6e6e 3px 5px); }
+.swatch-circle { border-radius: 50%; background: rgb(121 169 216 / 0.55); border: 1px solid #c3dbf2; }
+
+.view-bar { justify-content: center; margin: 2px 0 10px; }
+
 @media only screen and (max-width: 700px) {
   .grid, .caveats { grid-template-columns: 1fr; }
 }

@@ -69,7 +69,28 @@
       <tbody id="rank-body">{% for row in r.rows %}<tr><td class="rank">{{ loop.index }}</td><td>{{ row.name }}</td><td class="num">{{ row.value }}</td>{% if row.ci %}<td class="num muted">{{ row.ci }}</td>{% endif %}</tr>{% endfor %}</tbody>
     </table>
   </div>
+  {% if r.note %}<p class="muted centered note">Older data where newer isn't available: {{ r.note }}.</p>{% endif %}
   <p class="muted centered note" id="rank-note">{% if r.reported > r.rows|length %}Showing the highest {{ r.rows|length }} of {{ r.reported_label }}. Download the full list below.{% endif %}</p>
+</section>
+{% endif %}
+
+{% if page.map %}
+<section class="card wide map-card" id="map-card" data-level="{{ page.map.level }}" data-mode="{{ page.map.mode }}"
+  data-states='{{ all_states|tojson }}'>
+  <div class="card-header">{{ meta.measures[0].label }}, by {{ page.map.level }}</div>
+  <p class="muted centered note" id="map-note">Loading map</p>
+  <div class="map-canvas"></div>
+  <div class="legend map-legend"></div>
+  <details class="table-view">
+    <summary><span class="material-symbols-outlined">table_rows</span>Show as table</summary>
+    <div class="table-box">
+      <table>
+        <thead><tr><th>{{ page.map.level|capitalize }}</th><th class="num">{{ page.unit|capitalize }}</th><th class="num map-ci">95% CI</th></tr></thead>
+        <tbody id="map-table"></tbody>
+      </table>
+    </div>
+    <p class="muted centered note" id="map-table-note"></p>
+  </details>
 </section>
 {% endif %}
 
@@ -135,5 +156,6 @@
 {% endblock %}
 {% block scripts %}
 <script src="{{ site.base_url }}chart.js" defer></script>
+<script src="{{ site.base_url }}map.js" defer></script>
 <script src="{{ site.base_url }}dataset.js" defer></script>
 {% endblock %}
