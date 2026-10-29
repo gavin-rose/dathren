@@ -45,6 +45,7 @@ pub enum Geography {
     Nation,
     State,
     County,
+    Country,
 }
 
 #[derive(Debug, Serialize)]
@@ -97,6 +98,29 @@ impl Period {
     }
 }
 
+impl std::str::FromStr for Period {
+    type Err = crate::Error;
+
+    /// Parses `2026-05`, `2025-Q3`, or `2024`.
+    fn from_str(s: &str) -> crate::Result<Self> {
+        let invalid = || {
+            crate::Error::Invalid(format!(
+                "`{s}` isn't a period like 2026-05, 2025-Q3, or 2024"
+            ))
+        };
+        let (year, rest) = s.split_once('-').map_or((s, None), |(y, r)| (y, Some(r)));
+        let year = year.parse().map_err(|_| invalid())?;
+        match rest {
+            None => Ok(Period::year(year)),
+            Some(q) if q.starts_with('Q') => Ok(Period::quarter(
+                year,
+                q[1..].parse().map_err(|_| invalid())?,
+            )),
+            Some(m) => Ok(Period::month(year, m.parse().map_err(|_| invalid())?)),
+        }
+    }
+}
+
 impl fmt::Display for Period {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match (self.month, self.quarter) {
@@ -116,14 +140,28 @@ pub enum Flag {
     Underreported,
     /// May be revised when final data is released.
     Provisional,
+    /// Estimated with a statistical model, usually because the count is small.
+    Modeled,
 }
 
 impl Flag {
+    pub fn from_name(name: &str) -> Option<Self> {
+        [
+            Flag::Suppressed,
+            Flag::Underreported,
+            Flag::Provisional,
+            Flag::Modeled,
+        ]
+        .into_iter()
+        .find(|f| f.as_str() == name)
+    }
+
     pub fn as_str(self) -> &'static str {
         match self {
             Flag::Suppressed => "suppressed",
             Flag::Underreported => "underreported",
             Flag::Provisional => "provisional",
+            Flag::Modeled => "modeled",
         }
     }
 }

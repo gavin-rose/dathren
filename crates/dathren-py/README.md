@@ -25,6 +25,24 @@ rows[-1]
 df = dathren.fetch_df("brfss-mental-health", measure="mental_distress")
 ```
 
+Helpers for the steps that usually go wrong by hand. They take a list of rows
+or a DataFrame and give back the same kind:
+
+```python
+ohio = dathren.fetch("cdc-vsrr-county-overdose", geo="OH", since=2026)
+
+dathren.total(dathren.latest(ohio))
+# {'reported': 2135.0, 'low': 2180.0, 'high': 2540.0,
+#  'reported_count': 43, 'suppressed_count': 45}
+
+rates = dathren.per_capita(ohio)          # deaths per 100,000, using Census population
+print(dathren.cite("cdc-vsrr-county-overdose")["apa"])
+```
+
+`total` counts each suppressed county as somewhere from 1 to 9 instead of zero,
+and refuses rates. `fetch` raises a `DathrenWarning` when results include
+suppressed or modeled values; pass `warn=False` to silence it.
+
 Read each dataset's caveats before drawing conclusions:
 
 ```python

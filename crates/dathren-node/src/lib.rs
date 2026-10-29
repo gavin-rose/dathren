@@ -1,4 +1,4 @@
-use dathren::{Client, Query, export, registry};
+use dathren::{Client, Query, export, registry, tools};
 use napi::bindgen_prelude::*;
 use napi::{Env, Task};
 use napi_derive::napi;
@@ -66,4 +66,48 @@ pub fn fetch_json(dataset: String, options: Option<FetchOptions>) -> AsyncTask<F
             since_year: options.since,
         },
     })
+}
+
+#[napi]
+pub fn cite_json(dataset: String, accessed: Option<String>) -> Result<String> {
+    let meta = registry::get(&dataset).map_err(js_err)?.meta();
+    json(&tools::cite(meta, &accessed.unwrap_or_else(tools::today)))
+}
+
+#[napi]
+pub fn latest_json(rows: String) -> Result<String> {
+    let observations = export::from_records_json(&rows).map_err(js_err)?;
+    json(&export::records(&tools::latest(observations)))
+}
+
+#[napi]
+pub fn total_json(rows: String, low: f64, high: f64) -> Result<String> {
+    let observations = export::from_records_json(&rows).map_err(js_err)?;
+    json(&tools::total(&observations, (low, high)).map_err(js_err)?)
+}
+
+pub struct PerCapita {
+    rows: String,
+    per: f64,
+}
+
+impl Task for PerCapita {
+    type Output = String;
+    type JsValue = String;
+
+    fn compute(&mut self) -> Result<String> {
+        let observations = export::from_records_json(&self.rows).map_err(js_err)?;
+        let client = Client::new().map_err(js_err)?;
+        let rates = tools::per_capita_fetch(&client, &observations, self.per).map_err(js_err)?;
+        json(&export::records(&rates))
+    }
+
+    fn resolve(&mut self, _env: Env, output: String) -> Result<String> {
+        Ok(output)
+    }
+}
+
+#[napi]
+pub fn per_capita_json(rows: String, per: f64) -> AsyncTask<PerCapita> {
+    AsyncTask::new(PerCapita { rows, per })
 }

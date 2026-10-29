@@ -36,7 +36,7 @@ if (picker) {
     }
     const pick = (data) => data.filter((o) => o.measure === page.measure);
     const series = [{ name, rows: toRows(pick(own)) }];
-    if (geo !== "US" && page.unit !== "deaths") series.push({ name: "US", rows: toRows(pick(us)), reference: true });
+    if (geo !== "US" && !isCount(page.unit)) series.push({ name: "US", rows: toRows(pick(us)), reference: true });
 
     title.textContent = `${page.label}, ${name}`;
     renderLegend(legend, series);
@@ -50,7 +50,7 @@ if (picker) {
     const reported = pick(own).filter((o) => best(o) != null);
     const latest = reported.at(-1);
     value.textContent = latest ? formatValue(best(latest), page.unit) : "No data";
-    const unit = page.unit === "deaths" ? "" : `${page.unit}, `;
+    const unit = isCount(page.unit) ? "" : `${page.unit}, `;
     const soFar = latest?.adjusted_value != null && latest.value != null ? `, ${formatValue(latest.value, page.unit)} reported so far` : "";
     detail.textContent = latest ? `${unit}${page.periodLabel.toLowerCase()} ${periodLabel(latest.period)}${soFar}` : "";
 
@@ -85,7 +85,7 @@ if (filter) {
   const states = JSON.parse(filter.dataset.states);
   const nationwide = [...body.children];
   const nationwideNote = note.textContent;
-  const hasCi = body.querySelector("td:nth-child(4)") !== null;
+  const hasCi = document.querySelector(".ranking thead th:nth-child(4)") !== null;
 
   filter.addEventListener("change", async () => {
     const url = new URL(location.href);
@@ -111,7 +111,15 @@ if (filter) {
     body.replaceChildren(
       ...reported.map((o, i) => {
         const tr = document.createElement("tr");
-        tr.append(cell(String(i + 1), "rank"), cell(o.geo_name ?? o.geo), cell(formatValue(o.value, page.unit), "num"));
+        const value = cell(formatValue(o.value, page.unit), "num");
+        if (o.flags.includes("modeled")) {
+          const pill = document.createElement("span");
+          pill.className = "pill tiny";
+          pill.title = "Estimated with a statistical model because of a small count";
+          pill.textContent = "modeled";
+          value.prepend(pill, " ");
+        }
+        tr.append(cell(String(i + 1), "rank"), cell(o.geo_name ?? o.geo), value);
         if (hasCi) tr.append(cell(o.ci_low != null ? `${formatValue(o.ci_low, page.unit)} to ${formatValue(o.ci_high, page.unit)}` : "", "num muted"));
         return tr;
       }),
@@ -157,8 +165,13 @@ if (mapCard) {
     const hint = picker ? " Click a state to chart it." : level === "county" && filter ? " Pick a state above to zoom in." : "";
     const older = measure.note ? ` Older data where newer isn't available: ${measure.note}.` : "";
     const undrawn = map.undrawn(measure);
+    const listed = `${undrawn.slice(0, 3).join("; ")}${undrawn.length > 3 ? "; and more" : ""}`;
+    const why = {
+      county: ` because ${undrawn.length === 1 ? "its" : "their"} boundaries changed after this map was made`,
+      country: `, mostly small islands this map's scale can't show`,
+    }[level] ?? "";
     const missing = undrawn.length
-      ? ` ${undrawn.length} ${undrawn.length === 1 ? "place isn't" : "places aren't"} drawn because ${undrawn.length === 1 ? "its" : "their"} boundaries changed after this map was made (${undrawn.slice(0, 3).join("; ")}${undrawn.length > 3 ? "; and more" : ""}). They're in the table.`
+      ? ` ${undrawn.length} ${undrawn.length === 1 ? "place isn't" : "places aren't"} drawn${why} (${listed}). They're in the table.`
       : "";
     note.textContent = `${page.periodLabel} ${measure.period}.${hint}${older}${missing}`;
 

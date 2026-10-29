@@ -3,8 +3,21 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>{% block title %}{{ site.title }}{% endblock %}</title>
-  <meta name="description" content="{% block description %}{{ site.tagline }}{% endblock %}">
+  {% set page_title %}{% block title %}{{ site.title }}{% endblock %}{% endset %}
+  {% set page_description %}{% block description %}{{ site.tagline }}{% endblock %}{% endset %}
+  <title>{{ page_title }}</title>
+  <meta name="description" content="{{ page_description }}">
+  {% if canonical %}
+  <link rel="canonical" href="{{ canonical }}">
+  <meta property="og:url" content="{{ canonical }}">
+  <meta property="og:image" content="{{ site.site_url }}{{ site.base_url }}icon.png">
+  {% endif %}
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="{{ site.title }}">
+  <meta property="og:title" content="{{ page_title }}">
+  <meta property="og:description" content="{{ page_description }}">
+  <meta name="twitter:card" content="summary">
+  {% block head %}{% endblock %}
   <link rel="icon" type="image/png" sizes="32x32" href="{{ site.base_url }}favicon-32.png">
   <link rel="apple-touch-icon" href="{{ site.base_url }}apple-touch-icon.png">
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600&display=swap">

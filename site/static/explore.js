@@ -26,12 +26,15 @@ function fillSelect(select, options, keep) {
 
 async function update() {
   const { meta, states } = catalog.find((d) => d.meta.id === form.source.value);
+  const mappable = states.length > 0;
+  viewTabs.find((t) => t.dataset.view === "map").hidden = !mappable;
+  if (!mappable) view = "chart";
   fillSelect(form.measure, meta.measures.map((m) => [m.id, m.label]), form.measure.value);
   fillSelect(form.geo, [["US", "United States"], ...states.map((s) => [s.abbr, s.name])], form.geo.value);
   const measure = meta.measures.find((m) => m.id === form.measure.value);
   const geo = form.geo.value;
   const geoName = geo === "US" ? "United States" : states.find((s) => s.abbr === geo).name;
-  const countable = measure.unit === "deaths";
+  const countable = isCount(measure.unit);
   form.compare.disabled = geo === "US" || countable;
   form.compare.closest("label").title = countable ? "Counts aren't comparable across places of different sizes. Pick a rate to compare with the US." : "";
 
@@ -68,7 +71,7 @@ async function update() {
     try {
       const data = await loadJson(`${base}data/${meta.id}/map.json`);
       const latest = data.measures[measure.id];
-      const map = await createMap(mapRoot, { base, level: "state", mode: measure.unit === "deaths" ? "bubbles" : "choropleth", unit: measure.unit, periodLabel: meta.period_label, stateNames });
+      const map = await createMap(mapRoot, { base, level: "state", mode: isCount(measure.unit) ? "bubbles" : "choropleth", unit: measure.unit, periodLabel: meta.period_label, stateNames });
       map.render(latest);
       status.textContent = `${meta.period_label} ${latest.period}. Click a state to chart it.` + (latest.note ? ` Older data where newer isn't available: ${latest.note}.` : "");
     } catch (err) {

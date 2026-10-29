@@ -220,7 +220,7 @@ checksum = "914a755b7c2d4af2bdcff7ce1739e2db9a1b81a9b07123d8015786ae03c0980d"
 
 [[package]]
 name = "dathren"
-version = "0.1.1"
+version = "0.2.0"
 dependencies = [
  "csv",
  "reqwest",
@@ -231,7 +231,7 @@ dependencies = [
 
 [[package]]
 name = "dathren-cli"
-version = "0.1.1"
+version = "0.2.0"
 dependencies = [
  "anyhow",
  "clap",
@@ -241,7 +241,7 @@ dependencies = [
 
 [[package]]
 name = "dathren-node"
-version = "0.1.1"
+version = "0.2.0"
 dependencies = [
  "dathren",
  "napi",
@@ -253,7 +253,7 @@ dependencies = [
 
 [[package]]
 name = "dathren-py"
-version = "0.1.1"
+version = "0.2.0"
 dependencies = [
  "dathren",
  "pyo3",
@@ -264,7 +264,7 @@ dependencies = [
 
 [[package]]
 name = "dathren-site"
-version = "0.1.1"
+version = "0.2.0"
 dependencies = [
  "anyhow",
  "clap",

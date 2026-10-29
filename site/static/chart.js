@@ -2,7 +2,8 @@ const W = 720, H = 280, LEFT = 64, RIGHT = 16, TOP = 16, BOTTOM = 40, MAX_TICKS 
 const SVG_NS = "http://www.w3.org/2000/svg";
 
 const thousands = (v) => Math.round(v).toLocaleString("en-US");
-const formatValue = (v, unit) => (unit === "deaths" ? thousands(v) : v.toFixed(1));
+const isCount = (unit) => unit === "deaths" || unit === "people";
+const formatValue = (v, unit) => (isCount(unit) ? thousands(v) : v.toFixed(1));
 const periodLabel = (p) => {
   if (p.month) return `${p.year}-${String(p.month).padStart(2, "0")}`;
   if (p.quarter) return `${p.year}-Q${p.quarter}`;

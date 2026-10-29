@@ -32,7 +32,24 @@ const dathren = require("dathren");
 const rows = await dathren.fetch("nchs-mortality-rates", { geo: "MT", measure: "suicide" });
 ```
 
-Both return the same flat records as the CLI's CSV. To build them locally:
+Both return the same flat records as the CLI's CSV, and share helpers for the
+work that usually goes wrong by hand:
+
+```python
+rows = dathren.fetch("cdc-vsrr-county-overdose", geo="OH", since=2026)
+dathren.total(dathren.latest(rows))   # suppressed counties as a range, not zeros
+dathren.per_capita(rows)              # deaths per 100,000, using Census population
+dathren.cite("cdc-vsrr-county-overdose")["apa"]
+```
+
+- `latest`: each place's newest value, skipping rows the publisher never filled in.
+- `total`: sums a count measure, returning the reported sum plus a low to high range
+  covering the suppressed cells (NCHS suppresses 1 to 9). Refuses rates and mixed measures.
+- `per_capita`: turns counts into rates with Census population for the same year.
+- `cite`: APA, BibTeX, and plain text citations with today's access date.
+
+`fetch` also warns when results include suppressed or modeled values. To build
+the packages locally:
 
 ```sh
 cd crates/dathren-py && maturin develop --release && pytest tests
@@ -47,6 +64,9 @@ cargo run -p dathren-cli -- list
 cargo run -p dathren-cli -- info cdc-vsrr-overdose
 cargo run -p dathren-cli -- fetch cdc-vsrr-overdose --geo US --measure synthetic_opioids --since 2020
 cargo run -p dathren-cli -- fetch cdc-vsrr-overdose --geo OH --format json -o ohio.json
+cargo run -p dathren-cli -- fetch cdc-vsrr-county-overdose --geo OH --latest --per-capita
+cargo run -p dathren-cli -- total cdc-vsrr-county-overdose --geo OH --since 2026 --latest
+cargo run -p dathren-cli -- cite cdc-vsrr-overdose --style bibtex
 ```
 
 ## Datasets
@@ -56,8 +76,16 @@ cargo run -p dathren-cli -- fetch cdc-vsrr-overdose --geo OH --format json -o oh
 | `cdc-vsrr-overdose` | CDC NCHS provisional drug overdose death counts | US, states |
 | `nchs-mortality-rates` | CDC NCHS provisional death rates by cause | US, states |
 | `brfss-mental-health` | CDC BRFSS mental health indicators | States |
+| `yrbss-mental-health` | CDC YRBSS youth mental health indicators | US, states |
+| `nhis-mental-health` | CDC NHIS adult mental health indicators | US |
+| `mtf-youth-substance-use` | Monitoring the Future youth substance use, via CDC | US |
+| `cdc-overdose-specific-drugs` | CDC NCHS overdose deaths by specific drug | US |
+| `nchs-maternal-mortality` | CDC NCHS provisional maternal mortality | US |
+| `cdc-injury-county` | CDC injury and violence death rates | Counties |
+| `world-bank-health` | World Bank health indicators, from WHO, the UN, and others | Countries |
 | `cdc-vsrr-county-overdose` | CDC NCHS provisional county-level drug overdose deaths | Counties |
 | `cdc-places-county` | CDC PLACES local health estimates | Counties |
+| `census-population` | Census Bureau population estimates, used by `per_capita` | US, states, counties |
 
 ## Website
 
@@ -100,7 +128,10 @@ five platform packages (`@dathren/dathren-darwin-arm64` and so on) along with `d
 ## Credits
 
 Map shapes come from [us-atlas](https://github.com/topojson/us-atlas) (ISC
-license), built from US Census Bureau cartographic boundaries.
+license), built from US Census Bureau cartographic boundaries, and
+[world-atlas](https://github.com/topojson/world-atlas) (ISC license), built from
+Natural Earth. World country IDs were converted to ISO 3166 alpha-3 codes using
+[i18n-iso-countries](https://github.com/michaelwittig/node-i18n-iso-countries) (MIT).
 
 ## License
 

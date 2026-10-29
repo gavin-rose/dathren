@@ -11,12 +11,14 @@ use discussions::Discussion;
 
 use anyhow::{Context, Result};
 use dathren::geo::{self, State};
+use dathren::tools;
 use dathren::{
     Client, DatasetMeta, Flag, Geography, Observation, Period, Query, Source, export, registry,
 };
 use minijinja::{Environment, Value, context, path_loader};
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
+use serde_json::json;
 
 #[derive(Deserialize, Serialize)]
 struct Config {
@@ -120,6 +122,7 @@ struct RankRow {
     name: String,
     value: String,
     ci: Option<String>,
+    modeled: bool,
 }
 
 const COUNTY_RANKING_ROWS: usize = 15;
@@ -171,37 +174,39 @@ pub fn build(src: &Path, out: &Path, client: &Client) -> Result<()> {
             .cloned()
             .collect();
     }
-    let dir = out.join("changes");
-    fs::create_dir_all(&dir)?;
-    let html = env
-        .get_template("changes.html")?
-        .render(context! { site => &config, changes => &history })?;
-    fs::write(dir.join("index.html"), html)?;
+    let mut site = Site {
+        env: &env,
+        out,
+        config: &config,
+        paths: Vec::new(),
+    };
+    site.page("changes.html", "changes/", context! { changes => &history })?;
     let feed = env
         .get_template("changes.xml")?
         .render(context! { site => &config, changes => &history[..history.len().min(50)], updated => previous.date })?;
     fs::write(out.join("changes.xml"), feed)?;
 
     for page in &pages {
-        let dir = out.join("datasets").join(page.meta.id);
-        fs::create_dir_all(&dir)?;
-        let html = env
-            .get_template("dataset.html")?
-            .render(context! { site => &config, page => page, all_states => geo::STATES })?;
-        fs::write(dir.join("index.html"), html)?;
+        let path = format!("datasets/{}/", page.meta.id);
+        let json_ld = site.dataset_json_ld(page, &path);
+        let citation = tools::cite(page.meta, &tools::today());
+        site.page(
+            "dataset.html",
+            &path,
+            context! { page => page, all_states => geo::STATES, json_ld, citation },
+        )?;
     }
-    for (template, dir) in [
+    for (template, path) in [
         ("index.html", ""),
-        ("datasets.html", "datasets"),
-        ("codes.html", "codes"),
-        ("explore.html", "explore"),
+        ("datasets.html", "datasets/"),
+        ("codes.html", "codes/"),
+        ("explore.html", "explore/"),
     ] {
-        let dir = out.join(dir);
-        fs::create_dir_all(&dir)?;
-        let html = env
-            .get_template(template)?
-            .render(context! { site => &config, pages => &pages, states => geo::STATES })?;
-        fs::write(dir.join("index.html"), html)?;
+        site.page(
+            template,
+            path,
+            context! { pages => &pages, states => geo::STATES },
+        )?;
     }
 
     let token = std::env::var("GITHUB_TOKEN").ok().filter(|t| !t.is_empty());
@@ -231,29 +236,116 @@ pub fn build(src: &Path, out: &Path, client: &Client) -> Result<()> {
         .map(|(category, discussion)| context! { category, discussion })
         .collect();
 
-    let dir = out.join("discuss");
-    fs::create_dir_all(&dir)?;
-    let html = env
-        .get_template("discuss.html")?
-        .render(context! { site => &config, categories => &categories, recent, live })?;
-    fs::write(dir.join("index.html"), html)?;
+    site.page(
+        "discuss.html",
+        "discuss/",
+        context! { categories => &categories, recent, live },
+    )?;
     for page in &categories {
-        let dir = out.join("discuss").join(&page.category.slug);
-        fs::create_dir_all(&dir)?;
-        let html = env
-            .get_template("discuss_category.html")?
-            .render(context! { site => &config, page => page, live })?;
-        fs::write(dir.join("index.html"), html)?;
+        site.page(
+            "discuss_category.html",
+            &format!("discuss/{}/", page.category.slug),
+            context! { page => page, live },
+        )?;
         for discussion in &page.discussions {
-            let dir = out.join("discuss/t").join(discussion.number.to_string());
-            fs::create_dir_all(&dir)?;
-            let html = env
-                .get_template("discussion.html")?
-                .render(context! { site => &config, category => page.category, discussion })?;
-            fs::write(dir.join("index.html"), html)?;
+            site.page(
+                "discussion.html",
+                &format!("discuss/t/{}/", discussion.number),
+                context! { category => page.category, discussion },
+            )?;
         }
     }
-    Ok(())
+    site.finish()
+}
+
+/// Renders pages and remembers their paths for the sitemap.
+struct Site<'a> {
+    env: &'a Environment<'a>,
+    out: &'a Path,
+    config: &'a Config,
+    paths: Vec<String>,
+}
+
+impl Site<'_> {
+    fn url(&self, path: &str) -> Option<String> {
+        let root = self.config.site_url.as_deref()?.trim_end_matches('/');
+        Some(format!("{root}{}{path}", self.config.base_url))
+    }
+
+    fn page(&mut self, template: &str, path: &str, ctx: Value) -> Result<()> {
+        let html = self.env.get_template(template)?.render(context! {
+            site => self.config,
+            canonical => self.url(path),
+            ..ctx
+        })?;
+        let dir = self.out.join(path);
+        fs::create_dir_all(&dir)?;
+        fs::write(dir.join("index.html"), html)?;
+        self.paths.push(path.to_string());
+        Ok(())
+    }
+
+    /// schema.org Dataset markup, so dataset search engines can index each page.
+    fn dataset_json_ld(&self, page: &DatasetPage, path: &str) -> Option<String> {
+        let meta = page.meta;
+        let file = |name: &str| self.url(&format!("data/{}/{name}", meta.id));
+        let mut distribution = vec![json!({
+            "@type": "DataDownload",
+            "encodingFormat": "application/json",
+            "contentUrl": file(&format!("{}.json", page.download))?,
+        })];
+        if page.map.is_some() {
+            distribution.push(json!({
+                "@type": "DataDownload",
+                "encodingFormat": "application/json",
+                "contentUrl": file("map.json")?,
+            }));
+        }
+        let coverage = if meta.has(Geography::Country) {
+            "World"
+        } else {
+            "United States"
+        };
+        let ld = json!({
+            "@context": "https://schema.org",
+            "@type": "Dataset",
+            "name": meta.title,
+            "description": format!("{} Published by {}, updated {}.", meta.summary, meta.publisher, meta.update_cadence.to_lowercase()),
+            "url": self.url(path)?,
+            "sameAs": meta.source_url,
+            "keywords": meta.topics,
+            "creator": { "@type": "Organization", "name": meta.publisher },
+            "isAccessibleForFree": true,
+            "spatialCoverage": { "@type": "Place", "name": coverage },
+            "variableMeasured": meta.measures.iter().map(|m| m.label).collect::<Vec<_>>(),
+            "citation": tools::cite(meta, &tools::today()).text,
+            "distribution": distribution,
+            "includedInDataCatalog": { "@type": "DataCatalog", "name": self.config.title, "url": self.url("")? },
+        });
+        Some(ld.to_string().replace("</", "<\\/"))
+    }
+
+    fn finish(self) -> Result<()> {
+        let Some(root) = self.url("") else {
+            return Ok(());
+        };
+        let urls: String = self
+            .paths
+            .iter()
+            .map(|p| format!("  <url><loc>{root}{p}</loc></url>\n"))
+            .collect();
+        fs::write(
+            self.out.join("sitemap.xml"),
+            format!(
+                "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<urlset xmlns=\"http://www.sitemaps.org/schemas/sitemap/0.9\">\n{urls}</urlset>\n"
+            ),
+        )?;
+        fs::write(
+            self.out.join("robots.txt"),
+            format!("User-agent: *\nAllow: /\nSitemap: {root}sitemap.xml\n"),
+        )?;
+        Ok(())
+    }
 }
 
 /// The currently deployed site, used to find what changed since the last build.
@@ -395,7 +487,7 @@ fn dataset_page<'a>(
         };
         observations = source.fetch(client, &all)?;
     }
-    let observations = newest_per_place(observations);
+    let observations = tools::latest(observations);
     let newest = observations.iter().map(|o| o.period).max();
     write("latest", &observations)?;
     let found = changes::diff(
@@ -406,8 +498,15 @@ fn dataset_page<'a>(
     );
 
     let county = meta.has(Geography::County);
-    let map = if county {
-        write_map(data_dir, "county", observations.iter(), primary.unit)?
+    let level = if county {
+        "county"
+    } else if meta.has(Geography::Country) {
+        "country"
+    } else {
+        "state"
+    };
+    let map = if level != "state" {
+        write_map(data_dir, level, observations.iter(), primary.unit)?
     } else {
         let every_measure = Query {
             since_year: newest.map(|p| p.year - 1),
@@ -452,6 +551,7 @@ fn dataset_page<'a>(
                     chart::format_value(hi, primary.unit)
                 )
             }),
+            modeled: o.flags.contains(&Flag::Modeled),
         })
         .collect();
     let page = DatasetPage {
@@ -463,7 +563,7 @@ fn dataset_page<'a>(
         chart: None,
         ranking: newest.map(|period| Ranking {
             label: primary.label,
-            level: if county { "county" } else { "state" },
+            level,
             period: period.to_string(),
             note: older_periods(&observations, period),
             reported: reported.len(),
@@ -474,26 +574,6 @@ fn dataset_page<'a>(
         recent_changes: Vec::new(),
     };
     Ok((page, found))
-}
-
-/// The newest observation of each measure for each place. Publishers like PLACES mix
-/// years by state, so one cutoff period for everyone would silently drop places. A newer
-/// row with no value that was never published loses to an older value, but a suppressed
-/// one wins: falling back past a suppression would show a stale number as current.
-fn newest_per_place(observations: Vec<Observation>) -> Vec<Observation> {
-    let published = |o: &Observation| o.best().is_some() || o.flags.contains(&Flag::Suppressed);
-    let mut newest: BTreeMap<(String, String), Observation> = BTreeMap::new();
-    for o in observations {
-        let key = (o.measure.clone(), o.geo.clone());
-        let better = match newest.get(&key) {
-            None => true,
-            Some(kept) => (published(&o), o.period) > (published(kept), kept.period),
-        };
-        if better {
-            newest.insert(key, o);
-        }
-    }
-    newest.into_values().collect()
 }
 
 /// Names the states whose newest data is older than `newest`, e.g. "2022 for KY, PA".
@@ -515,11 +595,15 @@ fn older_periods(observations: &[Observation], newest: Period) -> Option<String>
     let parts: Vec<String> = by_period
         .iter()
         .rev()
-        .map(|(period, states)| {
-            format!(
-                "{period} for {}",
-                states.iter().copied().collect::<Vec<_>>().join(", ")
-            )
+        .map(|(period, places)| {
+            const SHOWN: usize = 8;
+            let mut names: Vec<&str> = places.iter().copied().take(SHOWN).collect();
+            let more = places.len().saturating_sub(SHOWN);
+            let more = format!("and {more} more");
+            if places.len() > SHOWN {
+                names.push(&more);
+            }
+            format!("{period} for {}", names.join(", "))
         })
         .collect();
     (!parts.is_empty()).then(|| parts.join("; "))
@@ -533,14 +617,10 @@ fn write_map<'a>(
 ) -> Result<Option<MapInfo>> {
     let place = |o: &Observation| match level {
         "county" => (o.geo.len() == 5).then(|| o.geo.clone()),
+        "country" => (o.geo.len() == 3).then(|| o.geo.clone()),
         _ => geo::state(&o.geo).map(|s| s.fips.to_string()),
     };
-    let latest = newest_per_place(
-        observations
-            .filter(|o| place(o).is_some())
-            .cloned()
-            .collect(),
-    );
+    let latest = tools::latest(observations.filter(|o| place(o).is_some()).cloned());
     let mut by_measure: BTreeMap<&str, Vec<&Observation>> = BTreeMap::new();
     for o in &latest {
         by_measure.entry(&o.measure).or_default().push(o);
@@ -550,7 +630,7 @@ fn write_map<'a>(
         names: BTreeMap::new(),
         measures: BTreeMap::new(),
     };
-    if level == "county" {
+    if level != "state" {
         for o in &latest {
             if let (Some(id), Some(name)) = (place(o), &o.geo_name) {
                 data.names.insert(id, name.clone());
@@ -589,7 +669,7 @@ fn write_map<'a>(
     fs::write(data_dir.join("map.json"), serde_json::to_vec(&data)?)?;
     Ok(Some(MapInfo {
         level,
-        mode: if unit == "deaths" {
+        mode: if tools::is_count(unit) {
             "bubbles"
         } else {
             "choropleth"
@@ -707,17 +787,12 @@ mod tests {
     }
 
     #[test]
-    fn newest_per_place_skips_unpublished_but_keeps_suppressed() {
-        let kept = newest_per_place(vec![
+    fn older_periods_name_lagging_places() {
+        let kept = tools::latest(vec![
             obs("TN", 2023, Some(15.0), vec![]),
             obs("TN", 2024, None, vec![]),
-            obs("WV", 2023, Some(20.0), vec![]),
-            obs("WV", 2024, None, vec![Flag::Suppressed]),
             obs("CA", 2024, Some(14.0), vec![]),
         ]);
-        let get = |geo: &str| kept.iter().find(|o| o.geo == geo).unwrap();
-        assert_eq!((get("TN").period.year, get("TN").value), (2023, Some(15.0)));
-        assert_eq!((get("WV").period.year, get("WV").value), (2024, None));
         assert_eq!(
             older_periods(&kept, Period::year(2024)).as_deref(),
             Some("2023 for TN")

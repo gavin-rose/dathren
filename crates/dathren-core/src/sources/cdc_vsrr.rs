@@ -138,7 +138,7 @@ fn indicator_for(measure: &str) -> Result<&'static str> {
 fn normalize(row: Row) -> Option<Observation> {
     let measure = INDICATORS.iter().find(|(_, ind)| *ind == row.indicator)?.0;
     let year = row.year.parse().ok()?;
-    let month = month_number(&row.month)?;
+    let month = super::month_number(&row.month)?;
     let value = row.data_value.as_deref().and_then(|v| v.parse().ok());
 
     let mut flags = vec![Flag::Provisional];
@@ -162,24 +162,6 @@ fn normalize(row: Row) -> Option<Observation> {
         flags,
         note: row.footnote,
     })
-}
-
-fn month_number(name: &str) -> Option<u8> {
-    const MONTHS: [&str; 12] = [
-        "January",
-        "February",
-        "March",
-        "April",
-        "May",
-        "June",
-        "July",
-        "August",
-        "September",
-        "October",
-        "November",
-        "December",
-    ];
-    MONTHS.iter().position(|m| *m == name).map(|i| i as u8 + 1)
 }
 
 #[cfg(test)]

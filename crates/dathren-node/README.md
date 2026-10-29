@@ -26,6 +26,22 @@ for (const c of dathren.info("cdc-places-county").caveats) {
 }
 ```
 
+Helpers for the steps that usually go wrong by hand:
+
+```js
+const ohio = await dathren.fetch("cdc-vsrr-county-overdose", { geo: "OH", since: 2026 });
+
+dathren.total(dathren.latest(ohio));
+// { reported: 2135, low: 2180, high: 2540, reported_count: 43, suppressed_count: 45 }
+
+const rates = await dathren.perCapita(ohio); // deaths per 100,000, using Census population
+console.log(dathren.cite("cdc-vsrr-county-overdose").apa);
+```
+
+`total` counts each suppressed county as somewhere from 1 to 9 instead of zero,
+and refuses rates. `fetch` emits a `DathrenWarning` when results include
+suppressed or modeled values.
+
 Requests run on a background thread and return promises, so they won't block
 the event loop. This package is for Node.js and other server-side runtimes.
 In the browser, use the JSON files at [dathren.debugr.net](https://dathren.debugr.net).

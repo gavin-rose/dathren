@@ -3,6 +3,7 @@
 {% set meta = page.meta %}
 {% block title %}{{ meta.title }} · {{ site.title }}{% endblock %}
 {% block description %}{{ meta.summary }}{% endblock %}
+{% block head %}{% if json_ld %}<script type="application/ld+json">{{ json_ld|safe }}</script>{% endif %}{% endblock %}
 {% block content %}
 <section class="intro">
   <h4>{{ meta.title }}</h4>
@@ -28,7 +29,7 @@
   <div class="figure-head">
     <p class="muted">{{ meta.series_note }}</p>
     <p class="stat"><strong id="stat-value">{{ page.headline.value }}</strong>
-      <span id="stat-detail">{% if page.unit != "deaths" %}{{ page.unit }}, {% endif %}{{ meta.period_label|lower }} {{ page.headline.period }}{% if page.headline.reported %}, {{ page.headline.reported }} reported so far{% endif %}</span></p>
+      <span id="stat-detail">{% if page.unit not in ["deaths", "people"] %}{{ page.unit }}, {% endif %}{{ meta.period_label|lower }} {{ page.headline.period }}{% if page.headline.reported %}, {{ page.headline.reported }} reported so far{% endif %}</span></p>
   </div>
   <div class="legend" id="chart-legend"></div>
   {% if page.chart %}
@@ -61,12 +62,13 @@
   {% endif %}
   <div class="figure-head">
     <p class="muted">{{ meta.series_note }}</p>
-    <p class="stat"><strong>{{ r.reported_label }}</strong>{{ "counties" if r.level == "county" else "states and territories" }} reported, {{ meta.period_label|lower }} {{ r.period }}</p>
+    <p class="stat"><strong>{{ r.reported_label }}</strong>{{ {"county": "counties", "country": "countries"}[r.level] or "states and territories" }} reported, {{ meta.period_label|lower }} {{ r.period }}</p>
   </div>
   <div class="table-box ranking">
     <table>
-      <thead><tr><th>#</th><th>{{ r.level|capitalize }}</th><th class="num">{{ page.unit|capitalize }}</th>{% if r.rows and r.rows[0].ci %}<th class="num">95% CI</th>{% endif %}</tr></thead>
-      <tbody id="rank-body">{% for row in r.rows %}<tr><td class="rank">{{ loop.index }}</td><td>{{ row.name }}</td><td class="num">{{ row.value }}</td>{% if row.ci %}<td class="num muted">{{ row.ci }}</td>{% endif %}</tr>{% endfor %}</tbody>
+      {% set has_ci = r.rows|selectattr("ci")|list|length > 0 %}
+      <thead><tr><th>#</th><th>{{ r.level|capitalize }}</th><th class="num">{{ page.unit|capitalize }}</th>{% if has_ci %}<th class="num">95% CI</th>{% endif %}</tr></thead>
+      <tbody id="rank-body">{% for row in r.rows %}<tr><td class="rank">{{ loop.index }}</td><td>{{ row.name }}</td><td class="num">{% if row.modeled %}<span class="pill tiny" title="Estimated with a statistical model because of a small count">modeled</span> {% endif %}{{ row.value }}</td>{% if has_ci %}<td class="num muted">{{ row.ci or "" }}</td>{% endif %}</tr>{% endfor %}</tbody>
     </table>
   </div>
   {% if r.note %}<p class="muted centered note">Older data where newer isn't available: {{ r.note }}.</p>{% endif %}
@@ -145,6 +147,24 @@
   {% endif %}
   {% from "install.html" import install %}
   {{ install(meta.id, meta.measures[0].id, "US" if page.download == "us" else "CA") }}
+</section>
+
+<section class="card wide">
+  <div class="card-header">Cite this dataset</div>
+  <div class="tabs" data-key="dathren-cite">
+    <div class="tab-bar">
+      <div role="tablist" aria-label="Citation style">
+        {% for style, label in [("apa", "APA"), ("bibtex", "BibTeX"), ("text", "Plain text")] %}
+        <button type="button" role="tab" data-lang="{{ style }}" aria-selected="{{ "true" if loop.first else "false" }}"{% if not loop.first %} tabindex="-1"{% endif %}>{{ label }}</button>
+        {% endfor %}
+      </div>
+      <button type="button" class="copy-code" aria-label="Copy citation"><span class="material-symbols-outlined">content_copy</span></button>
+    </div>
+    {% for style in ["apa", "bibtex", "text"] %}
+    <pre class="terminal" role="tabpanel" data-lang="{{ style }}"{% if not loop.first %} hidden{% endif %}><code>{{ citation[style] }}</code></pre>
+    {% endfor %}
+  </div>
+  <p class="muted centered">If dathren helped, mention it in your methods: {{ citation.dathren }}</p>
 </section>
 
 <section class="card wide">

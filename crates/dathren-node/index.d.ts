@@ -19,14 +19,14 @@ export interface Dataset {
   source_url: string;
   update_cadence: string;
   topics: string[];
-  geographies: Array<"nation" | "state" | "county">;
+  geographies: Array<"nation" | "state" | "county" | "country">;
   period_label: string;
   series_note: string;
   measures: Measure[];
   caveats: Caveat[];
 }
 
-export type Flag = "suppressed" | "underreported" | "provisional";
+export type Flag = "suppressed" | "underreported" | "provisional" | "modeled";
 
 export interface Record {
   dataset: string;
@@ -50,6 +50,27 @@ export interface FetchOptions {
   geo?: string;
   measure?: string | string[];
   since?: number;
+  /** Emit a `DathrenWarning` about suppressed and modeled values. Defaults to true. */
+  warn?: boolean;
+}
+
+export interface Citation {
+  apa: string;
+  bibtex: string;
+  text: string;
+  /** How to cite dathren itself. */
+  dathren: string;
+}
+
+export interface Total {
+  /** Sum of the reported values. */
+  reported: number;
+  /** `reported` plus the smallest value each suppressed cell could hold. */
+  low: number;
+  /** `reported` plus the largest value each suppressed cell could hold. */
+  high: number;
+  reported_count: number;
+  suppressed_count: number;
 }
 
 /** Every dataset dathren knows about, with its measures and caveats. */
@@ -58,3 +79,11 @@ export function datasets(): Dataset[];
 export function info(dataset: string): Dataset;
 /** Fetches normalized records straight from the publisher, off the main thread. */
 export function fetch(dataset: string, options?: FetchOptions): Promise<Record[]>;
+/** Citations for a dataset. `accessed` is `YYYY-MM-DD` and defaults to today. */
+export function cite(dataset: string, options?: { accessed?: string }): Citation;
+/** Each place's newest value; skips never-published rows but keeps suppressed ones. */
+export function latest(rows: Record[]): Record[];
+/** Sums one count measure with suppressed cells as a range. Throws for rates or mixed measures. */
+export function total(rows: Record[], options?: { suppressed?: [number, number] }): Total;
+/** Turns counts into rates per `per` residents (default 100,000) using Census population. */
+export function perCapita(rows: Record[], options?: { per?: number }): Promise<Record[]>;

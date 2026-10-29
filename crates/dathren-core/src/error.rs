@@ -6,6 +6,8 @@ pub enum Error {
     UnknownDataset(String),
     #[error("unknown measure `{measure}` for dataset `{dataset}`")]
     UnknownMeasure { dataset: String, measure: String },
+    #[error("{0}")]
+    Invalid(String),
 }
 
 pub type Result<T> = std::result::Result<T, Error>;

@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 {% set active = "datasets" %}
 {% block title %}Datasets · {{ site.title }}{% endblock %}
+{% block description %}Public health datasets from the CDC, NCHS, Census, and World Bank, normalized with suppression and caveats kept.{% endblock %}
 {% block content %}
 <section class="intro">
   <h4>Datasets</h4>
@@ -16,10 +17,10 @@
     <p>{{ page.meta.summary }}</p>
     {% if page.headline %}
     <p class="stat"><strong>{{ page.headline.value }}</strong>
-      {{ page.headline.label|lower }}{% if page.unit != "deaths" %} ({{ page.unit }}){% endif %}, US, {{ page.meta.period_label|lower }} {{ page.headline.period }}</p>
+      {{ page.headline.label|lower }}{% if page.unit not in ["deaths", "people"] %} ({{ page.unit }}){% endif %}, US, {{ page.meta.period_label|lower }} {{ page.headline.period }}</p>
     {% elif page.ranking %}
     <p class="stat"><strong>{{ page.ranking.reported_label }}</strong>
-      {{ "counties" if page.ranking.level == "county" else "states and territories" }} reported, {{ page.meta.period_label|lower }} {{ page.ranking.period }}</p>
+      {{ {"county": "counties", "country": "countries"}[page.ranking.level] or "states and territories" }} reported, {{ page.meta.period_label|lower }} {{ page.ranking.period }}</p>
     {% endif %}
     {% if page.recent_changes %}<p class="card-updated">Changed {{ page.recent_changes[0].date }}</p>{% endif %}
   </div>

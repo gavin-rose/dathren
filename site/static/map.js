@@ -16,6 +16,40 @@ function decodeArcs(topo) {
   });
 }
 
+function equalEarth([lon, lat]) {
+  const A1 = 1.340264, A2 = -0.081106, A3 = 0.000893, A4 = 0.003796, M = Math.sqrt(3) / 2;
+  const l = Math.asin(M * Math.sin((lat * Math.PI) / 180));
+  const l2 = l * l, l6 = l2 * l2 * l2;
+  return [
+    ((lon * Math.PI) / 180) * Math.cos(l) / (M * (A1 + 3 * A2 * l2 + l6 * (7 * A3 + 9 * A4 * l2))),
+    -l * (A1 + A2 * l2 + l6 * (A3 + A4 * l2)),
+  ];
+}
+
+function worldFit(arcs) {
+  const points = arcs.flat().filter((p) => p[1] >= -60).map(equalEarth);
+  const xs = points.map((p) => p[0]), ys = points.map((p) => p[1]);
+  const [x0, x1, y0, y1] = [Math.min(...xs), Math.max(...xs), Math.min(...ys), Math.max(...ys)];
+  const k = Math.min(MAP_W / (x1 - x0), MAP_H / (y1 - y0));
+  const ox = (MAP_W - k * (x1 - x0)) / 2, oy = (MAP_H - k * (y1 - y0)) / 2;
+  return (p) => {
+    const [x, y] = equalEarth(p);
+    return [ox + k * (x - x0), oy + k * (y - y0)];
+  };
+}
+
+function unwrap(points) {
+  let offset = 0;
+  return points.map(([lon, lat], i) => {
+    if (i) {
+      const step = lon + offset - points[i - 1][0] - offset;
+      if (step > 180) offset -= 360;
+      else if (step < -180) offset += 360;
+    }
+    return [lon + offset, lat];
+  });
+}
+
 function rings(geometry) {
   if (geometry.type === "Polygon") return [geometry.arcs];
   if (geometry.type === "MultiPolygon") return geometry.arcs;
@@ -31,10 +65,12 @@ function ringPoints(ring, arcs) {
   return points;
 }
 
-function shapes(topo, object) {
+function shapes(topo, object, world = false) {
   const arcs = decodeArcs(topo);
-  return topo.objects[object].geometries.map((g) => {
-    const polygons = rings(g).map((polygon) => polygon.map((ring) => ringPoints(ring, arcs)));
+  const fit = world && worldFit(arcs);
+  const place = (ring) => (fit ? unwrap(ringPoints(ring, arcs)).map(fit) : ringPoints(ring, arcs));
+  return topo.objects[object].geometries.filter((g) => !world || (g.id && g.id !== "ATA")).map((g) => {
+    const polygons = rings(g).map((polygon) => polygon.map(place));
     const d = polygons.flat().map((pts) => "M" + pts.map(([x, y]) => `${x.toFixed(1)},${y.toFixed(1)}`).join("L") + "Z").join("");
     let best = null;
     for (const [outer] of polygons) {
@@ -72,8 +108,10 @@ function niceRound(v) {
 }
 
 async function createMap(root, { base, level, mode, unit, periodLabel, stateNames, names = {} }) {
-  const topo = await loadTopology(`${base}geo/${level === "county" ? "counties" : "states"}-albers-10m.json`);
-  const places = shapes(topo, level === "county" ? "counties" : "states");
+  const world = level === "country";
+  const file = { county: "counties-albers-10m", state: "states-albers-10m", country: "countries-110m" }[level];
+  const topo = await loadTopology(`${base}geo/${file}.json`);
+  const places = shapes(topo, { county: "counties", state: "states", country: "countries" }[level], world);
   const stateShapes = level === "county" ? shapes(topo, "states") : places;
   const byId = new Map(places.map((p) => [p.id, p]));
   const svg = svgEl("svg", { class: "map", viewBox: `0 0 ${MAP_W} ${MAP_H}`, role: "img" });
@@ -93,7 +131,11 @@ async function createMap(root, { base, level, mode, unit, periodLabel, stateName
   canvas.replaceChildren(svg, tip);
   if (level === "county") for (const s of stateShapes) borderLayer.append(svgEl("path", { d: s.d }));
 
-  const nameOf = (id) => (level === "county" ? names[id] ?? `${byId.get(id)?.name ?? id}, ${stateNames[id.slice(0, 2)]?.abbr ?? ""}` : stateNames[id]?.name ?? byId.get(id)?.name ?? id);
+  const nameOf = (id) => {
+    if (level === "county") return names[id] ?? `${byId.get(id)?.name ?? id}, ${stateNames[id.slice(0, 2)]?.abbr ?? ""}`;
+    if (level === "country") return names[id] ?? byId.get(id)?.name ?? id;
+    return stateNames[id]?.name ?? byId.get(id)?.name ?? id;
+  };
   let current = null;
 
   function showTip(event, id) {
@@ -152,7 +194,7 @@ async function createMap(root, { base, level, mode, unit, periodLabel, stateName
       });
     } else {
       const max = Math.max(...reported);
-      const maxR = level === "county" ? 16 : 30;
+      const maxR = level === "state" ? 30 : 16;
       const radius = (v) => maxR * Math.sqrt(v / max);
       for (const p of places) {
         const path = svgEl("path", { d: p.d, class: "place base", fill: measure.values[p.id] && measure.values[p.id][0] == null ? noData : null, "data-id": p.id });
@@ -193,8 +235,10 @@ async function createMap(root, { base, level, mode, unit, periodLabel, stateName
     let view = [0, 0, MAP_W, MAP_H];
     if (shape) {
       const [x0, y0, x1, y1] = shape.box;
-      const pad = Math.max(x1 - x0, y1 - y0) * 0.08;
-      view = [x0 - pad, y0 - pad, x1 - x0 + 2 * pad, y1 - y0 + 2 * pad];
+      let w = (x1 - x0) * 1.16, h = (y1 - y0) * 1.16;
+      if (w / h < MAP_W / MAP_H) w = h * (MAP_W / MAP_H);
+      else h = w / (MAP_W / MAP_H);
+      view = [(x0 + x1 - w) / 2, (y0 + y1 - h) / 2, w, h];
     }
     svg.setAttribute("viewBox", view.join(" "));
     hatch.setAttribute("patternTransform", `rotate(45) scale(${Math.max(view[2] / MAP_W, view[3] / MAP_H)})`);

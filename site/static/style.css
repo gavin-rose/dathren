@@ -340,6 +340,7 @@ h4 .material-symbols-outlined { font-size: 26px; vertical-align: -4px; }
 .result-list .code { flex: none; min-width: 9ch; max-width: 45%; font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 13px; color: var(--text-muted); }
 .result-source { margin: 10px 0 0; font-size: 12px; text-align: center; }
 .pill-on { background: rgb(121 169 216 / 0.16); }
+.pill.tiny { padding: 0 6px; font-size: 10px; vertical-align: 1px; }
 
 .changes { list-style: none; margin: 0; padding: 0; }
 .change-date { margin: 14px 0 4px; font-size: 13px; font-weight: 500; color: var(--accent); }

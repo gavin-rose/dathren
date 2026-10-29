@@ -1,8 +1,8 @@
 use std::io::Write;
 
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
-use crate::Observation;
+use crate::{Flag, Observation};
 
 /// An observation flattened for tables: the period as text and flags as names.
 #[derive(Debug, Serialize)]
@@ -40,6 +40,48 @@ impl<'a> From<&'a Observation> for Record<'a> {
 
 pub fn records(observations: &[Observation]) -> Vec<Record<'_>> {
     observations.iter().map(Record::from).collect()
+}
+
+/// A [`Record`] coming back from Python or JavaScript.
+#[derive(Debug, Deserialize)]
+struct Incoming {
+    dataset: String,
+    measure: String,
+    geo: String,
+    geo_name: Option<String>,
+    period: String,
+    value: Option<f64>,
+    adjusted_value: Option<f64>,
+    #[serde(default)]
+    ci_low: Option<f64>,
+    #[serde(default)]
+    ci_high: Option<f64>,
+    #[serde(default)]
+    flags: Vec<String>,
+    note: Option<String>,
+}
+
+/// Parses records produced by [`records`] back into observations.
+pub fn from_records_json(json: &str) -> crate::Result<Vec<Observation>> {
+    let rows: Vec<Incoming> = serde_json::from_str(json)
+        .map_err(|e| crate::Error::Invalid(format!("rows don't look like dathren records: {e}")))?;
+    rows.into_iter()
+        .map(|r| {
+            Ok(Observation {
+                period: r.period.parse()?,
+                flags: r.flags.iter().filter_map(|f| Flag::from_name(f)).collect(),
+                dataset: r.dataset,
+                measure: r.measure,
+                geo: r.geo,
+                geo_name: r.geo_name,
+                value: r.value,
+                adjusted_value: r.adjusted_value,
+                ci_low: r.ci_low,
+                ci_high: r.ci_high,
+                note: r.note,
+            })
+        })
+        .collect()
 }
 
 pub fn write_csv<W: Write>(w: W, observations: &[Observation]) -> csv::Result<()> {

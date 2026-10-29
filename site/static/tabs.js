@@ -1,6 +1,7 @@
 const LANG_KEY = "dathren-lang";
 
 for (const group of document.querySelectorAll(".tabs")) {
+  const key = group.dataset.key || LANG_KEY;
   const tabs = [...group.querySelectorAll('[role="tab"]')];
   const panels = [...group.querySelectorAll('[role="tabpanel"]')];
   const copy = group.querySelector(".copy-code");
@@ -19,7 +20,7 @@ for (const group of document.querySelectorAll(".tabs")) {
     tab.addEventListener("click", () => {
       select(tab.dataset.lang);
       try {
-        localStorage.setItem(LANG_KEY, tab.dataset.lang);
+        localStorage.setItem(key, tab.dataset.lang);
       } catch {}
     });
     tab.addEventListener("keydown", (event) => {
@@ -47,7 +48,7 @@ for (const group of document.querySelectorAll(".tabs")) {
 
   let saved = null;
   try {
-    saved = localStorage.getItem(LANG_KEY);
+    saved = localStorage.getItem(key);
   } catch {}
   if (tabs.some((t) => t.dataset.lang === saved)) select(saved);
 }

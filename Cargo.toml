@@ -10,13 +10,13 @@ members = [
 default-members = ["crates/dathren-core", "crates/dathren-cli", "crates/dathren-site"]
 
 [workspace.package]
-version = "0.1.1"
+version = "0.2.0"
 edition = "2024"
 license = "MIT"
 repository = "https://github.com/gavin-rose/dathren"
 
 [workspace.dependencies]
-dathren = { path = "crates/dathren-core", version = "0.1.1" }
+dathren = { path = "crates/dathren-core", version = "0.2.0" }
 dathren-site = { path = "crates/dathren-site" }
 anyhow = "1"
 clap = { version = "4", features = ["derive"] }

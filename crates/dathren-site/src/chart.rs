@@ -150,7 +150,7 @@ fn nice_scale(max: f64) -> (f64, f64) {
 
 /// Counts get thousands separators; rates and percents get one decimal place.
 pub fn format_value(v: f64, unit: &str) -> String {
-    if unit == "deaths" {
+    if dathren::tools::is_count(unit) {
         thousands(v)
     } else {
         format!("{v:.1}")

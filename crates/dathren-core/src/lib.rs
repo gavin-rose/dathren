@@ -8,6 +8,7 @@ mod model;
 pub mod registry;
 mod source;
 pub mod sources;
+pub mod tools;
 
 pub use client::Client;
 pub use error::{Error, Result};

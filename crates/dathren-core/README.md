@@ -35,6 +35,11 @@ for source in dathren::registry::all() {
 }
 ```
 
+The `tools` module covers the steps that usually go wrong by hand:
+`tools::latest` keeps each place's newest value, `tools::total` sums counts
+with suppressed cells as a range, `tools::per_capita_fetch` turns counts into
+rates with Census population, and `tools::cite` writes citations.
+
 Browse datasets, charts, and caveats at
 [dathren.debugr.net](https://dathren.debugr.net). Also available as the
 `dathren-cli` command-line tool and as `dathren` on PyPI and npm.
